@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { test as baseTest } from "vitest";
 import { Server } from "./server.ts";
 import { promisify } from "node:util";
+import { execFile } from "node:child_process";
 import { i } from "./util/i.ts";
 
 export const test = baseTest.extend("server", async ({}, { onCleanup }) => {
@@ -21,6 +22,13 @@ export const test = baseTest.extend("server", async ({}, { onCleanup }) => {
     return { port, url: `http://localhost:${port}` };
   }
   throw new Error(i`unsure how to get port out of ${address}`);
+});
+
+describe("tsgo", () => {
+  it("typechecks cleanly", async () => {
+    const { stdout, stderr } = await promisify(execFile)("tsgo");
+    expect(stderr).to.equal("");
+  });
 });
 
 describe("slider", () => {
