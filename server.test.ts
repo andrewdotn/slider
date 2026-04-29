@@ -97,8 +97,8 @@ describe("slider", () => {
     expect(body).to.contain("# Sample talk");
     expect(body).to.contain("## Motivation");
   });
-
-  test("should list md files from a specified base directory", async ({
+  
+  test("listing slides with custom basedir", async ({
     tmpdir,
   }) => {
     const talkName = "test-talk";
