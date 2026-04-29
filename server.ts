@@ -6,12 +6,14 @@ import { createServer as createViteServer, type ViteDevServer } from "vite";
 import { i } from "./util/i.ts";
 import * as http from "http";
 import * as fs from "node:fs/promises";
+import { promisify } from "node:util";
 
 import { parseTalk } from "./slides.ts";
 
 export class Server {
   app: Express;
   vite: ViteDevServer | null = null;
+  listeningServer: http.Server | null = null;
 
   constructor() {
     this.app = express();
@@ -56,8 +58,14 @@ export class Server {
   }
 
   async serve({ port }: { port?: number } = {}): Promise<http.Server> {
+    const isTest = process.env.NODE_ENV === "test";
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: isTest ? false : undefined,
+        ws: isTest ? false : undefined,
+      },
+      optimizeDeps: { noDiscovery: isTest },
       appType: "custom",
     });
     this.vite = vite;
@@ -98,9 +106,26 @@ export class Server {
     return new Promise((resolve) => {
       const server = listenMaybeWithPort(() => {
         console.log(i`now listening on ${server.address()}`);
+        this.listeningServer = server;
         resolve(server);
       });
     });
+  }
+
+  async close(): Promise<void> {
+    const listeningServer = this.listeningServer;
+    const vite = this.vite;
+    this.listeningServer = null;
+    this.vite = null;
+
+    if (listeningServer) {
+      const address = listeningServer.address();
+      await promisify(listeningServer.close.bind(listeningServer))();
+      console.log(i`${address} server stopped`);
+    }
+    if (vite) {
+      await vite.close();
+    }
   }
 }
 
