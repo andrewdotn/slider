@@ -32,4 +32,6 @@ describe("slider", () => {
     const body = await res.text();
     expect(body).to.equal("Hello World!");
   });
+
+  test.skip("sample-talk1", async ({ server }) => {});
 });
