@@ -7,16 +7,14 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 
-export const test = baseTest.extend('tmpdir',
-  async ({}, {onCleanup}) => {
-    const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "slider-test-"));
-    onCleanup(async () => {
-      await fs.rm(tmpdir, {recursive: true, force: true});
-    })
-    return tmpdir;
-  })
-.extend("server", async ({}, { onCleanup }) => {
-  const server = new Server();
+async function createTestServer({
+  baseDir,
+  onCleanup,
+}: {
+  baseDir?: string;
+  onCleanup: (cb: () => void) => void;
+}) {
+  const server = new Server({ baseDir });
   const listeningServer = await server.serve();
 
   onCleanup(async () => {
@@ -29,11 +27,29 @@ export const test = baseTest.extend('tmpdir',
     return { port, url: `http://localhost:${port}` };
   }
   throw new Error(i`unsure how to get port out of ${address}`);
-});
+}
+
+export const test = baseTest
+  .extend("tmpdir", async ({}, { onCleanup }) => {
+    const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "slider-test-"));
+    onCleanup(async () => {
+      await fs.rm(tmpdir, { recursive: true, force: true });
+    });
+    return tmpdir;
+  })
+  .extend("server", async ({}, { onCleanup }) => {
+    return createTestServer({ onCleanup });
+  })
+  .extend("tmpdirServer", async ({ tmpdir }, { onCleanup }) => {
+    const server = await createTestServer({ baseDir: tmpdir, onCleanup });
+    return { server, tmpdir };
+  });
 
 describe("tsgo", () => {
   it("typechecks cleanly", async () => {
-    const { stdout, stderr } = await promisify(execFile)("node_modules/.bin/tsgo");
+    const { stdout, stderr } = await promisify(execFile)(
+      "node_modules/.bin/tsgo",
+    );
     expect(stderr).to.equal("");
   });
 });
@@ -97,33 +113,25 @@ describe("slider", () => {
     expect(body).to.contain("# Sample talk");
     expect(body).to.contain("## Motivation");
   });
-  
-  test("listing slides with custom basedir", async ({
-    tmpdir,
-  }) => {
+
+  test("listing slides with custom basedir", async ({ tmpdirServer }) => {
+    const {
+      server: { url },
+      tmpdir,
+    } = await tmpdirServer;
     const talkName = "test-talk";
     const talkContent = "# Test Talk\n\n## Slide 1\n\nhello";
     await fs.writeFile(path.join(tmpdir, `${talkName}.md`), talkContent);
 
-    const server = new Server();
-    const listeningServer = await server.serve({ baseDir: tmpdir });
-    const address = listeningServer.address();
-    const port = (address as any).port;
-    const url = `http://localhost:${port}`;
+    const res = await fetch(`${url}/`);
+    const body = await res.text();
+    expect(body).to.contain(talkName);
+    // Ensure it's not showing files from the current directory
+    expect(body).to.not.contain("sample-talk1");
 
-    try {
-      const res = await fetch(`${url}/`);
-      const body = await res.text();
-      expect(body).to.contain(talkName);
-      // Ensure it's not showing files from the current directory
-      expect(body).to.not.contain("sample-talk1");
-
-      const resSlide = await fetch(`${url}/${talkName}/`);
-      expect(resSlide.status).to.equal(200);
-      const slideBody = await resSlide.text();
-      expect(slideBody).to.contain('<div id="root"></div>');
-    } finally {
-      await server.close();
-    }
+    const resSlide = await fetch(`${url}/${talkName}/`);
+    expect(resSlide.status).to.equal(200);
+    const slideBody = await resSlide.text();
+    expect(slideBody).to.contain('<div id="root"></div>');
   });
 });

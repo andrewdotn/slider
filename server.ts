@@ -13,11 +13,12 @@ import { parseTalk } from "./slides.ts";
 
 export class Server {
   app: Express;
-  vite: ViteDevServer | null = null;
-  listeningServer: http.Server | null = null;
-  baseDir: string = ".";
+  vite?: ViteDevServer;
+  listeningServer?: http.Server;
+  baseDir?: string;
 
-  constructor() {
+  constructor({ baseDir }: { baseDir?: string } = {}) {
+    this.baseDir = baseDir;
     this.app = express();
 
     this.app.get("/hello", (req, res) => {
@@ -25,7 +26,7 @@ export class Server {
     });
 
     this.app.get("/", async (req, res) => {
-      const files = await fs.readdir(this.baseDir);
+      const files = await fs.readdir(this.baseDir ?? ".");
       const mdFiles = files
         .filter((f) => f.endsWith(".md"))
         .map((f) => f.replace(/\.md$/, ""));
@@ -34,6 +35,13 @@ export class Server {
         .join("\n");
       res.send(`<ul>\n${items}\n</ul>`);
     });
+  }
+
+  private _relativePath(p: string) {
+    if (this.baseDir) {
+      return path.join(this.baseDir, p);
+    }
+    return p;
   }
 
   private async talkExists(
@@ -51,10 +59,11 @@ export class Server {
     let markdown: string;
     try {
       markdown = await fs.readFile(
-        path.join(this.baseDir, `${talkName}.md`),
+        this._relativePath(`${talkName}.md`),
         "utf-8",
       );
-    } catch {
+    } catch (e) {
+      console.error(i`error reading ${talkName}.md: ${e}`);
       return false;
     }
 
@@ -64,14 +73,9 @@ export class Server {
 
   async serve({
     port,
-    baseDir,
   }: {
     port?: number;
-    baseDir?: string;
   } = {}): Promise<http.Server> {
-    if (baseDir) {
-      this.baseDir = baseDir;
-    }
     const isTest = process.env.NODE_ENV === "test";
     const vite = await createViteServer({
       server: {
@@ -129,8 +133,8 @@ export class Server {
   async close(): Promise<void> {
     const listeningServer = this.listeningServer;
     const vite = this.vite;
-    this.listeningServer = null;
-    this.vite = null;
+    this.listeningServer = undefined;
+    this.vite = undefined;
 
     if (listeningServer) {
       const address = listeningServer.address();
@@ -153,7 +157,7 @@ function main() {
     .strict()
     .option("port", { type: "number" })
     .option("base-dir", { type: "string" }).argv as ArgvOptions;
-  new Server().serve({ port: argv.port, baseDir: argv.baseDir});
+  new Server({ baseDir: argv.baseDir }).serve({ port: argv.port });
 }
 
 if (import.meta?.url && process.argv[1] === fileURLToPath(import.meta.url)) {
