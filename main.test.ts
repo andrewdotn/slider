@@ -41,5 +41,40 @@ describe("slider", () => {
     expect(body).to.equal("Hello World!");
   });
 
-  test.skip("sample-talk1", async ({ server }) => {});
+  test("index lists md files", async ({ server }) => {
+    const res = await fetch(`${server.url}/`);
+    expect(res.status).to.equal(200);
+    const body = await res.text();
+    expect(body).to.contain("<ul>");
+    expect(body).to.contain('<a href="/sample-talk1/">sample-talk1</a>');
+  });
+
+  test("sample-talk1 slide 1", async ({ server }) => {
+    const res = await fetch(`${server.url}/sample-talk1/`);
+    expect(res.status).to.equal(200);
+    const body = await res.text();
+    expect(body).to.contain("<!-- Slide -->");
+    expect(body).to.contain("<!-- /Slide -->");
+    expect(body).to.contain("# Sample talk");
+    expect(body).not.to.contain("Previous");
+    expect(body).to.contain('<a href="/sample-talk1/motivation">Next</a>');
+  });
+
+  test("sample-talk1 slide 2", async ({ server }) => {
+    const res = await fetch(`${server.url}/sample-talk1/motivation`);
+    expect(res.status).to.equal(200);
+    const body = await res.text();
+    expect(body).to.contain("## Motivation");
+    expect(body).to.contain('<a href="/sample-talk1/">Previous</a>');
+    expect(body).to.contain('<a href="/sample-talk1/getting-started">Next</a>');
+  });
+
+  test("sample-talk1 slide 3", async ({ server }) => {
+    const res = await fetch(`${server.url}/sample-talk1/getting-started`);
+    expect(res.status).to.equal(200);
+    const body = await res.text();
+    expect(body).to.contain("## Getting started");
+    expect(body).to.contain('<a href="/sample-talk1/motivation">Previous</a>');
+    expect(body).not.to.contain("Next");
+  });
 });
