@@ -10,7 +10,7 @@ export const test = baseTest.extend("server", async ({}, { onCleanup }) => {
   const listeningServer = await server.serve();
 
   onCleanup(async () => {
-    await promisify(listeningServer.close)();
+    await promisify(listeningServer.close.bind(listeningServer))();
     console.log("server stopped");
   });
 
