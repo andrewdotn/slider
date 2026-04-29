@@ -1,0 +1,21 @@
+{
+  "type": "module",
+  "volta": {
+    "node": "24.15.0",
+    "yarn": "4.14.1"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "yargs": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
+    "@types/yargs": "^17.0.35",
+    "playwright": "^1.59.1",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.9",
+    "vitest": "^4.1.5"
+  }
+}
