@@ -9,6 +9,7 @@
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "jsx": "react"
+    "skipLibCheck": true,
+    "jsx": "react-jsx"
   }
 }
