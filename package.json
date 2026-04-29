@@ -12,6 +12,8 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
@@ -19,10 +21,14 @@
     "@types/yargs": "^17.0.35",
     "@typescript/native-preview": "7.0.0-dev.20260421.2",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/browser": "4.1.5",
+    "@vitest/browser-playwright": "4.1.5",
+    "jsdom": "^29.0.2",
     "playwright": "^1.59.1",
     "prettier": "^3.8.3",
     "typescript": "^6.0.3",
     "vite": "^8.0.9",
-    "vitest": "^4.1.5"
+    "vitest": "4.1.5",
+    "vitest-browser-react": "^2.2.0"
   }
 }

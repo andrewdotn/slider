@@ -122,6 +122,26 @@ function SlideView({
 export function App() {
   const data = useSlides();
 
+  useEffect(() => {
+    if (!data) return;
+    const { talk, slides, idx } = data;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      let target: Slide | null = null;
+      if (e.key === "ArrowRight" && idx < slides.length - 1) {
+        target = slides[idx + 1];
+      } else if (e.key === "ArrowLeft" && idx > 0) {
+        target = slides[idx - 1];
+      }
+      if (target) {
+        const href = target.slug ? `/${talk}/${target.slug}` : `/${talk}/`;
+        window.history.pushState({}, "", href);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [data]);
+
   if (!data) {
     return <div>Loading...</div>;
   }
