@@ -11,7 +11,7 @@ export class Server {
   constructor() {
     const app = express();
 
-    app.get("/", (req, res) => {
+    app.get("/hello", (req, res) => {
       res.send("Hello World!");
     });
 

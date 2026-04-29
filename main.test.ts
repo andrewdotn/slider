@@ -18,16 +18,16 @@ export const test = baseTest.extend("server", async ({}, { onCleanup }) => {
   const address = listeningServer.address();
   if (address !== null && typeof address === "object") {
     const { port } = address;
-    return { port, url: `http://localhost:${port}/` };
+    return { port, url: `http://localhost:${port}` };
   }
   throw new Error(i`unsure how to get port out of ${address}`);
 });
 
 describe("slider", () => {
-  test("works", async ({ server }) => {
+  test("hello world", async ({ server }) => {
     expect(server.port).to.be.a("number");
 
-    const res = await fetch(server.url);
+    const res = await fetch(`${server.url}/hello`);
     expect(res.status).to.equal(200);
     const body = await res.text();
     expect(body).to.equal("Hello World!");
