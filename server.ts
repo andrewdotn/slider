@@ -8,12 +8,14 @@ import * as http from "http";
 import * as fs from "node:fs/promises";
 import { promisify } from "node:util";
 
+import * as path from "node:path";
 import { parseTalk } from "./slides.ts";
 
 export class Server {
   app: Express;
   vite: ViteDevServer | null = null;
   listeningServer: http.Server | null = null;
+  baseDir: string = ".";
 
   constructor() {
     this.app = express();
@@ -23,7 +25,7 @@ export class Server {
     });
 
     this.app.get("/", async (req, res) => {
-      const files = await fs.readdir(".");
+      const files = await fs.readdir(this.baseDir);
       const mdFiles = files
         .filter((f) => f.endsWith(".md"))
         .map((f) => f.replace(/\.md$/, ""));
@@ -48,7 +50,10 @@ export class Server {
 
     let markdown: string;
     try {
-      markdown = await fs.readFile(`${talkName}.md`, "utf-8");
+      markdown = await fs.readFile(
+        path.join(this.baseDir, `${talkName}.md`),
+        "utf-8",
+      );
     } catch {
       return false;
     }
@@ -57,7 +62,16 @@ export class Server {
     return slides.some((s) => s.slug === slideSlug);
   }
 
-  async serve({ port }: { port?: number } = {}): Promise<http.Server> {
+  async serve({
+    port,
+    baseDir,
+  }: {
+    port?: number;
+    baseDir?: string;
+  } = {}): Promise<http.Server> {
+    if (baseDir) {
+      this.baseDir = baseDir;
+    }
     const isTest = process.env.NODE_ENV === "test";
     const vite = await createViteServer({
       server: {
@@ -131,13 +145,15 @@ export class Server {
 
 type ArgvOptions = {
   port?: number;
+  baseDir?: string;
 };
 
 function main() {
   const argv = yargs(hideBin(process.argv))
     .strict()
-    .option("port", { type: "number" }).argv as ArgvOptions;
-  new Server().serve({ port: argv.port });
+    .option("port", { type: "number" })
+    .option("base-dir", { type: "string" }).argv as ArgvOptions;
+  new Server().serve({ port: argv.port, baseDir: argv.baseDir});
 }
 
 if (import.meta?.url && process.argv[1] === fileURLToPath(import.meta.url)) {

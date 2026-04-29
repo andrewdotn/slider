@@ -1,12 +1,21 @@
-import { describe, it, expect } from "vitest";
-
-import { test as baseTest } from "vitest";
+import { describe, it, expect, test as baseTest } from "vitest";
 import { Server } from "./server.ts";
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { i } from "./util/i.ts";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import * as os from "node:os";
 
-export const test = baseTest.extend("server", async ({}, { onCleanup }) => {
+export const test = baseTest.extend('tmpdir',
+  async ({}, {onCleanup}) => {
+    const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "slider-test-"));
+    onCleanup(async () => {
+      await fs.rm(tmpdir, {recursive: true, force: true});
+    })
+    return tmpdir;
+  })
+.extend("server", async ({}, { onCleanup }) => {
   const server = new Server();
   const listeningServer = await server.serve();
 
@@ -24,7 +33,7 @@ export const test = baseTest.extend("server", async ({}, { onCleanup }) => {
 
 describe("tsgo", () => {
   it("typechecks cleanly", async () => {
-    const { stdout, stderr } = await promisify(execFile)("tsgo");
+    const { stdout, stderr } = await promisify(execFile)("node_modules/.bin/tsgo");
     expect(stderr).to.equal("");
   });
 });
@@ -53,7 +62,7 @@ describe("slider", () => {
     expect(res.headers.get("content-type")).to.contain("text/html");
     const body = await res.text();
     expect(body).to.contain('<div id="root"></div>');
-    expect(body).to.contain("/main.tsx");
+    expect(body).to.contain("/index.tsx");
   });
 
   test("sample-talk1 slide 2 serves html page", async ({ server }) => {
@@ -87,5 +96,34 @@ describe("slider", () => {
     const body = await res.text();
     expect(body).to.contain("# Sample talk");
     expect(body).to.contain("## Motivation");
+  });
+
+  test("should list md files from a specified base directory", async ({
+    tmpdir,
+  }) => {
+    const talkName = "test-talk";
+    const talkContent = "# Test Talk\n\n## Slide 1\n\nhello";
+    await fs.writeFile(path.join(tmpdir, `${talkName}.md`), talkContent);
+
+    const server = new Server();
+    const listeningServer = await server.serve({ baseDir: tmpdir });
+    const address = listeningServer.address();
+    const port = (address as any).port;
+    const url = `http://localhost:${port}`;
+
+    try {
+      const res = await fetch(`${url}/`);
+      const body = await res.text();
+      expect(body).to.contain(talkName);
+      // Ensure it's not showing files from the current directory
+      expect(body).to.not.contain("sample-talk1");
+
+      const resSlide = await fetch(`${url}/${talkName}/`);
+      expect(resSlide.status).to.equal(200);
+      const slideBody = await resSlide.text();
+      expect(slideBody).to.contain('<div id="root"></div>');
+    } finally {
+      await server.close();
+    }
   });
 });
