@@ -16,12 +16,30 @@ function useSlides(): {
     idx: number;
   } | null>(null);
 
+  const [path, setPath] = useState(window.location.pathname);
+
   useEffect(() => {
-    const parts = window.location.pathname.split("/").filter(Boolean);
+    const handlePopState = () => {
+      setPath(window.location.pathname);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const parts = path.split("/").filter(Boolean);
     if (parts.length === 0) return;
 
     const talk = parts[0];
     const slideSlug = parts[1] ?? "";
+
+    if (data && data.talk === talk) {
+      const idx = data.slides.findIndex((s) => s.slug === slideSlug);
+      if (idx !== -1) {
+        setData({ ...data, idx });
+      }
+      return;
+    }
 
     fetch(`/${talk}.md`)
       .then((res) => {
@@ -35,7 +53,7 @@ function useSlides(): {
           setData({ talk, slides, idx });
         }
       });
-  }, []);
+  }, [path]);
 
   return data;
 }
@@ -76,12 +94,26 @@ function SlideView({
       : `/${talk}/`
     : null;
 
+  const navigate = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    window.history.pushState({}, "", href);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
   return (
     <div>
       <div className="slide">{Content ? <Content /> : null}</div>
       <nav>
-        {prevHref && <a href={prevHref}>Previous</a>}
-        {nextHref && <a href={nextHref}>Next</a>}
+        {prevHref && (
+          <a href={prevHref} onClick={(e) => navigate(e, prevHref)}>
+            Previous
+          </a>
+        )}
+        {nextHref && (
+          <a href={nextHref} onClick={(e) => navigate(e, nextHref)}>
+            Next
+          </a>
+        )}
       </nav>
     </div>
   );
