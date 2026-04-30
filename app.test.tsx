@@ -78,6 +78,23 @@ describe("MDX rendering", () => {
     expect(html).toContain("}");
   });
 
+  it("renders Font tag as a scoped style element", async () => {
+    const Font = ({ size }: { size: string }) => (
+      <style>{`.slides article.current > * { zoom: ${size}; }`}</style>
+    );
+    const transformed = transformForSubSlide(
+      normalizeIndentedCode('# A\n\n<Font size="70%"/>\n\nbody\n'),
+      1,
+    );
+    const { default: Content } = await evaluate(transformed, {
+      ...(runtime as any),
+    });
+    const html = renderToStaticMarkup(<Content components={{ Font }} />);
+    expect(html).toContain("zoom: 70%");
+    expect(html).toContain(".slides article.current");
+    expect(html).toContain("body");
+  });
+
   it("renders the sample-talk1 slides as MDX", async () => {
     const fs = await import("node:fs/promises");
     const markdown = await fs.readFile("sample-talk1.md", "utf-8");

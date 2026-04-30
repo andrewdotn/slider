@@ -21,6 +21,12 @@ function extractCodeText(node: React.ReactNode): string {
   return "";
 }
 
+function Font({ size }: { size: string }) {
+  return (
+    <style>{`.slides article.current > * { zoom: ${size}; }`}</style>
+  );
+}
+
 function Pre(props: React.HTMLAttributes<HTMLPreElement>) {
   const child = React.Children.only(props.children) as React.ReactElement<{
     children?: React.ReactNode;
@@ -309,7 +315,7 @@ function SlideView({
           {error ? (
             <pre className="mdx-error">{error}</pre>
           ) : Content ? (
-            <Content components={{ TableOfContents, pre: Pre }} />
+            <Content components={{ TableOfContents, Font, pre: Pre }} />
           ) : null}
         </article>
       </div>

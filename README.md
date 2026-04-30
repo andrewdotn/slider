@@ -24,6 +24,9 @@ inspired by LaTeX's beamer.
       - There's also an optional `skipCurrentSlide={true}` option that by
         default hides table of contents slides from the table of contents.
 
+  - `<Font size="80%"/>` scales the text on one slide. Helpful for code
+    blocks.
+
   - Highlighting inside code blocks -- end a line with `//HL` or `#HL` to
     have the background appear bright yellow. Repeat the `HL` bit for lines
     that should appear on the slide with a literal `//HL` or `#HL`. More `HL`s
