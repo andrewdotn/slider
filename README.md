@@ -63,6 +63,8 @@ slides on the internet (yet?).
     and updates happen in place because the vite hmr machinery is too
     heavyweight too reload the whole page on slide-to-slide navigation.
 
+  - `present.css` is mostly borrowed from go present, put all CSS changes into
+    `style.css` instead.
+
 Original specs for some previously-implemented features are in the `specs`
 folder.
-
