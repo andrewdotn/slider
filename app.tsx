@@ -39,7 +39,7 @@ function Pre(props: React.HTMLAttributes<HTMLPreElement>) {
       <code className={child.props.className}>
         {lines.map((line, i) => (
           <span key={i} className={line.highlight ? "hl" : undefined}>
-            {line.text}
+            {line.text || " "}
           </span>
         ))}
       </code>
