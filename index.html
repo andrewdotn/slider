@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="UTF-8" />
@@ -17,15 +17,18 @@
       (function () {
         function update() {
           var s = getComputedStyle(document.documentElement);
-          var w = parseFloat(s.getPropertyValue('--slide-width')) || 960;
-          var h = parseFloat(s.getPropertyValue('--slide-height')) || 600;
+          var w = parseFloat(s.getPropertyValue("--slide-width")) || 960;
+          var h = parseFloat(s.getPropertyValue("--slide-height")) || 600;
           var scale = Math.min(
-            window.innerWidth * 0.99 / w,
-            window.innerHeight * 0.99 / h
+            (window.innerWidth * 0.99) / w,
+            (window.innerHeight * 0.99) / h,
           );
-          document.documentElement.style.setProperty('--slide-scale', String(scale));
+          document.documentElement.style.setProperty(
+            "--slide-scale",
+            String(scale),
+          );
         }
-        window.addEventListener('resize', update);
+        window.addEventListener("resize", update);
         update();
       })();
     </script>

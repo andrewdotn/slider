@@ -12,7 +12,11 @@ export default defineConfig({
           name: "node",
           environment: "node",
           include: ["**/*.test.ts", "app.test.tsx"],
-          exclude: ["**/node_modules/**", "keyboard-nav.test.tsx", "mdx-error.test.tsx"],
+          exclude: [
+            "**/node_modules/**",
+            "keyboard-nav.test.tsx",
+            "mdx-error.test.tsx",
+          ],
         },
       },
       {

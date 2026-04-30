@@ -4,9 +4,9 @@
 
 ## Slide 1
 
-  - One thing
+- One thing
   <Pause/>
-  - Another thing
+- Another thing
 
 ## Slide 2
 

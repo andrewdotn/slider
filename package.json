@@ -1,7 +1,8 @@
 {
   "type": "module",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "prettify": "prettier --write '**/*.{ts,tsx,css}'"
   },
   "dependencies": {
     "@mdx-js/mdx": "^3.1.1",

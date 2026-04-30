@@ -7,7 +7,7 @@ Author
 Why?
 
 - Reason 1
-<Pause/>
+  <Pause/>
 - Reason 2
 
 ## Tradeoffs
@@ -28,7 +28,7 @@ Why?
 
 ## Getting started
 
-Here is *the code*
+Here is _the code_
 
     int main() {
       printf("hello world\n");

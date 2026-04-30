@@ -25,7 +25,9 @@ describe("MDX errors", () => {
     window.history.pushState({}, "", "/talks/sample-talk1/");
     const screen = await render(<App />);
 
-    await expect.element(screen.getByText(/Unexpected character/i)).toBeVisible();
+    await expect
+      .element(screen.getByText(/Unexpected character/i))
+      .toBeVisible();
     await expect.element(screen.getByText(/Line 5/)).toBeVisible();
     await expect.element(screen.getByText(/SubSlide when=4/)).toBeVisible();
   });

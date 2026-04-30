@@ -21,56 +21,60 @@ async function waitForText(
 }
 
 describe("live reload", () => {
-  test("browser updates when md file changes via direct write", { timeout: 30000 }, async ({
-    tmpdirBrowserServer,
-  }) => {
-    const {
-      server: { url },
-      tmpdir,
-    } = await tmpdirBrowserServer;
+  test(
+    "browser updates when md file changes via direct write",
+    { timeout: 30000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
 
-    const talkFile = path.join(tmpdir, "live-test.md");
-    await fs.writeFile(talkFile, "# Live Test\n\nOriginal content");
+      const talkFile = path.join(tmpdir, "live-test.md");
+      await fs.writeFile(talkFile, "# Live Test\n\nOriginal content");
 
-    const browser = await chromium.launch();
-    try {
-      const page = await browser.newPage();
-      await page.goto(`${url}/talks/live-test/`);
-      await waitForText(page, ".slide", "Original content");
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.goto(`${url}/talks/live-test/`);
+        await waitForText(page, ".slide", "Original content");
 
-      await fs.writeFile(talkFile, "# Live Test\n\nUpdated content");
+        await fs.writeFile(talkFile, "# Live Test\n\nUpdated content");
 
-      await waitForText(page, ".slide", "Updated content");
-    } finally {
-      await browser.close();
-    }
-  });
+        await waitForText(page, ".slide", "Updated content");
+      } finally {
+        await browser.close();
+      }
+    },
+  );
 
-  test("browser updates when md file is renamed into place (vim-style atomic write)", { timeout: 30000 }, async ({
-    tmpdirBrowserServer,
-  }) => {
-    const {
-      server: { url },
-      tmpdir,
-    } = await tmpdirBrowserServer;
+  test(
+    "browser updates when md file is renamed into place (vim-style atomic write)",
+    { timeout: 30000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
 
-    const talkFile = path.join(tmpdir, "vim-test.md");
-    await fs.writeFile(talkFile, "# Vim Test\n\nBefore edit");
+      const talkFile = path.join(tmpdir, "vim-test.md");
+      await fs.writeFile(talkFile, "# Vim Test\n\nBefore edit");
 
-    const browser = await chromium.launch();
-    try {
-      const page = await browser.newPage();
-      await page.goto(`${url}/talks/vim-test/`);
-      await waitForText(page, ".slide", "Before edit");
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.goto(`${url}/talks/vim-test/`);
+        await waitForText(page, ".slide", "Before edit");
 
-      // Simulate vim's atomic write: write to temp file, then rename into place
-      const tempFile = path.join(tmpdir, "vim-test.md.tmp");
-      await fs.writeFile(tempFile, "# Vim Test\n\nAfter edit");
-      await fs.rename(tempFile, talkFile);
+        // Simulate vim's atomic write: write to temp file, then rename into place
+        const tempFile = path.join(tmpdir, "vim-test.md.tmp");
+        await fs.writeFile(tempFile, "# Vim Test\n\nAfter edit");
+        await fs.rename(tempFile, talkFile);
 
-      await waitForText(page, ".slide", "After edit");
-    } finally {
-      await browser.close();
-    }
-  });
+        await waitForText(page, ".slide", "After edit");
+      } finally {
+        await browser.close();
+      }
+    },
+  );
 });

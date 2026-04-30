@@ -44,7 +44,9 @@ function formatError(err: unknown, source?: string): string {
       const marker = i === idx ? ">" : " ";
       excerpt.push(`${marker} ${num} | ${lines[i]}`);
       if (i === idx && column != null) {
-        excerpt.push(`${" ".repeat(width + 4)}${" ".repeat(Math.max(0, column - 1))}^`);
+        excerpt.push(
+          `${" ".repeat(width + 4)}${" ".repeat(Math.max(0, column - 1))}^`,
+        );
       }
     }
     return `${header}\n\n${excerpt.join("\n")}`;
@@ -160,9 +162,15 @@ function SlideView({
   const slide = slides[idx];
   const { subCount, parseError } = useMemo(() => {
     try {
-      return { subCount: countSubSlides(slide.content), parseError: null as string | null };
+      return {
+        subCount: countSubSlides(slide.content),
+        parseError: null as string | null,
+      };
     } catch (err) {
-      return { subCount: 1, parseError: formatError(err, normalizeIndentedCode(slide.content)) };
+      return {
+        subCount: 1,
+        parseError: formatError(err, normalizeIndentedCode(slide.content)),
+      };
     }
   }, [slide.content]);
   const clampedSub = Math.min(Math.max(1, subIdx), subCount);
@@ -193,10 +201,18 @@ function SlideView({
 
   const TableOfContents = useMemo(
     () =>
-      ({ minDepth = 1, maxDepth = 3 }: { minDepth?: number; maxDepth?: number }) => {
+      ({
+        minDepth = 1,
+        maxDepth = 3,
+      }: {
+        minDepth?: number;
+        maxDepth?: number;
+      }) => {
         type Node = { slide: Slide; title: string; children: Node[] };
         const roots: Node[] = [];
-        const stack: { depth: number; siblings: Node[] }[] = [{ depth: minDepth - 1, siblings: roots }];
+        const stack: { depth: number; siblings: Node[] }[] = [
+          { depth: minDepth - 1, siblings: roots },
+        ];
         for (const slide of slides) {
           const h = slideHeading(slide.content);
           if (!h || h.depth < minDepth || h.depth > maxDepth) continue;

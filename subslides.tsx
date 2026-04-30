@@ -122,7 +122,7 @@ function findPauseAndSubSlides(tree: Root) {
       const whenValue =
         typeof attr?.value === "string"
           ? attr.value
-          : attr?.value?.value ?? "1-";
+          : (attr?.value?.value ?? "1-");
       const ub = parseWhen(String(whenValue)).upperBound();
       if (ub !== null && ub > maxSubSlide) maxSubSlide = ub;
     }

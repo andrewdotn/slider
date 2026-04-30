@@ -23,12 +23,15 @@ export class Server {
 
   private isTest: boolean;
 
-  constructor({ baseDir, isTest }: { baseDir?: string; isTest?: boolean } = {}) {
+  constructor({
+    baseDir,
+    isTest,
+  }: { baseDir?: string; isTest?: boolean } = {}) {
     this.baseDir = baseDir;
     this.isTest = isTest ?? process.env.NODE_ENV === "test";
     const app = express();
 
-    app.use(morgan('dev'));
+    app.use(morgan("dev"));
 
     app.get("/hello", (req, res) => {
       res.send("Hello World!");
@@ -53,7 +56,7 @@ export class Server {
       await this.serveSlide(req, res, req.params.talk, req.params.slide);
     });
 
-    app.use('/talks-static/', express.static(this.baseDir ?? "."));
+    app.use("/talks-static/", express.static(this.baseDir ?? "."));
 
     app.get("/events", (req, res) => {
       res.writeHead(200, {
@@ -73,7 +76,7 @@ export class Server {
 
   private async _installViteMiddleware() {
     const vite = await createViteServer({
-      base: '/vite',
+      base: "/vite",
       server: {
         middlewareMode: true,
         hmr: this.isTest ? false : undefined,
@@ -84,7 +87,7 @@ export class Server {
     });
     this.vite = vite;
 
-    this.app.use('/vite', vite.middlewares);
+    this.app.use("/vite", vite.middlewares);
   }
 
   private _relativePath(p: string) {
@@ -122,10 +125,10 @@ export class Server {
   }
 
   private async serveSlide(
-      req: express.Request,
-      res: express.Response,
-      talkName: string,
-      slideSlug: string,
+    req: express.Request,
+    res: express.Response,
+    talkName: string,
+    slideSlug: string,
   ) {
     const indexHtml = await fs.readFile("index.html", "utf-8");
 
@@ -133,9 +136,12 @@ export class Server {
       return res.status(404).send("Not found");
     }
 
-    const html = await this.vite!.transformIndexHtml(req.originalUrl, indexHtml);
+    const html = await this.vite!.transformIndexHtml(
+      req.originalUrl,
+      indexHtml,
+    );
     res.status(200).set({ "Content-Type": "text/html" }).end(html);
-  };
+  }
 
   private _startWatching() {
     const dir = this.baseDir ?? ".";
