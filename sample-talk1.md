@@ -31,5 +31,6 @@ Why?
 Here is *the code*
 
     int main() {
-      printf("hello world\n");
+      printf("hello world\n");  //HL
+      return 0;
     }

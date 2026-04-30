@@ -20,6 +20,11 @@ inspired by LaTeX's beamer.
   - `<TableOfContents/>` tag with optional `minDepth` and `maxDepth`
     attributes, e.g., 
 
+  - Highlighting inside code blocks -- end a line with `//HL` or `#HL` to
+    have the background appear bright yellow. Repeat the `HL` bit for lines
+    that should appear on the slide with a literal `//HL` or `#HL`. More `HL`s
+    in the input toggle highlighting in the output as they add more `HL`s.
+
 ## Shortcut keys
 
   - Right/left arrow keys to advance by sub-slide

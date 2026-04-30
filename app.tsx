@@ -7,8 +7,39 @@ import {
   normalizeIndentedCode,
   transformForSubSlide,
 } from "./subslides.tsx";
+import { parseCodeHighlights } from "./highlight.ts";
 
 type MDXContent = (props: Record<string, unknown>) => React.JSX.Element;
+
+function extractCodeText(node: React.ReactNode): string {
+  if (typeof node === "string") return node;
+  if (typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(extractCodeText).join("");
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return extractCodeText(node.props.children);
+  }
+  return "";
+}
+
+function Pre(props: React.HTMLAttributes<HTMLPreElement>) {
+  const child = React.Children.only(props.children) as React.ReactElement<{
+    children?: React.ReactNode;
+    className?: string;
+  }>;
+  const raw = extractCodeText(child.props.children).replace(/\n$/, "");
+  const lines = parseCodeHighlights(raw);
+  return (
+    <pre>
+      <code className={child.props.className}>
+        {lines.map((line, i) => (
+          <span key={i} className={line.highlight ? "hl" : undefined}>
+            {line.text}
+          </span>
+        ))}
+      </code>
+    </pre>
+  );
+}
 
 function formatError(err: unknown, source?: string): string {
   const e = err as {
@@ -274,7 +305,7 @@ function SlideView({
           {error ? (
             <pre className="mdx-error">{error}</pre>
           ) : Content ? (
-            <Content components={{ TableOfContents }} />
+            <Content components={{ TableOfContents, pre: Pre }} />
           ) : null}
         </article>
       </div>

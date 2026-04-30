@@ -40,3 +40,10 @@ h2 {
   bottom: auto;
   margin-bottom: 20px;
 }
+
+pre code > span {
+  display: block;
+}
+pre code > span.hl {
+  background: #ffff00;
+}
