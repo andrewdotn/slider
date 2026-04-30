@@ -342,6 +342,14 @@ export function App() {
           }
           href = hrefFor(talk, prev.slug, prevCount);
         }
+      } else if (e.key === "ArrowDown") {
+        if (idx < slides.length - 1) {
+          href = hrefFor(talk, slides[idx + 1].slug, 1);
+        }
+      } else if (e.key === "ArrowUp") {
+        if (idx > 0) {
+          href = hrefFor(talk, slides[idx - 1].slug, 1);
+        }
       }
       if (href) navigateTo(href);
     };

@@ -1,6 +1,7 @@
 export interface Slide {
   slug: string;
   content: string;
+  level: number;
 }
 
 export function slideHeading(
@@ -26,6 +27,7 @@ export function parseTalk(markdown: string): Slide[] {
   const slides: Slide[] = [];
   let currentContent: string[] = [];
   let currentSlug = "";
+  let currentLevel = 1;
   const slugCounts = new Map<string, number>();
 
   function dedupeSlug(slug: string): string {
@@ -39,9 +41,14 @@ export function parseTalk(markdown: string): Slide[] {
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
       if (currentContent.length > 0 || slides.length > 0) {
-        slides.push({ slug: currentSlug, content: currentContent.join("\n") });
+        slides.push({
+          slug: currentSlug,
+          content: currentContent.join("\n"),
+          level: currentLevel,
+        });
       }
       const title = headingMatch[2].trim();
+      currentLevel = headingMatch[1].length;
       if (slides.length === 0 && headingMatch[1] === "#") {
         currentSlug = "";
         currentContent = [line];
@@ -55,7 +62,11 @@ export function parseTalk(markdown: string): Slide[] {
   }
 
   if (currentContent.length > 0 || slides.length === 0) {
-    slides.push({ slug: currentSlug, content: currentContent.join("\n") });
+    slides.push({
+      slug: currentSlug,
+      content: currentContent.join("\n"),
+      level: currentLevel,
+    });
   }
 
   return slides;

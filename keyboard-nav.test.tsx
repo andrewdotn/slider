@@ -31,6 +31,22 @@ describe("Keyboard Navigation", () => {
     );
   });
 
+  it("should navigate to next same-level slide on ArrowDown", async () => {
+    window.history.pushState({}, "", "/talks/sample-talk1/");
+    const screen = await render(<App />);
+
+    await expect.element(screen.getByText("Slide 1")).toBeVisible();
+
+    const pushStateSpy = vi.spyOn(window.history, "pushState");
+    await userEvent.keyboard("{ArrowDown}");
+
+    expect(pushStateSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      "",
+      "/talks/sample-talk1/slide-2",
+    );
+  });
+
   it("should navigate to previous slide on ArrowLeft", async () => {
     window.history.pushState({}, "", "/talks/sample-talk1/slide-2");
     const screen = await render(<App />);
