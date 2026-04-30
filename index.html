@@ -5,20 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="same-origin" />
     <title>Slider</title>
-    <style>
-      *,
-      ::before,
-      ::after {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: unset;
-      }
-    </style>
+    <link rel="stylesheet" href="/present.css" />
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Set --slide-scale so the slide fills the viewport while preserving
+      // its aspect ratio. Done in JS because Firefox doesn't support
+      // length/length division in CSS calc() (needed for a pure-CSS scale).
+      (function () {
+        function update() {
+          var s = getComputedStyle(document.documentElement);
+          var w = parseFloat(s.getPropertyValue('--slide-width')) || 960;
+          var h = parseFloat(s.getPropertyValue('--slide-height')) || 600;
+          var scale = Math.min(
+            window.innerWidth * 0.99 / w,
+            window.innerHeight * 0.99 / h
+          );
+          document.documentElement.style.setProperty('--slide-scale', String(scale));
+        }
+        window.addEventListener('resize', update);
+        update();
+      })();
+    </script>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

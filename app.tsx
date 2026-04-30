@@ -113,20 +113,22 @@ function SlideView({
   };
 
   return (
-    <div>
-      <div className="slide">{Content ? <Content /> : null}</div>
-      <nav>
-        {prevHref && (
-          <a href={prevHref} onClick={(e) => navigate(e, prevHref)}>
-            Previous
-          </a>
-        )}
-        {nextHref && (
-          <a href={nextHref} onClick={(e) => navigate(e, nextHref)}>
-            Next
-          </a>
-        )}
-      </nav>
+    <div className="slides">
+      <article className="current">
+        {Content ? <Content /> : null}
+        <nav>
+          {prevHref && (
+            <a href={prevHref} onClick={(e) => navigate(e, prevHref)}>
+              Previous
+            </a>
+          )}
+          {nextHref && (
+            <a href={nextHref} onClick={(e) => navigate(e, nextHref)}>
+              Next
+            </a>
+          )}
+        </nav>
+      </article>
     </div>
   );
 }
