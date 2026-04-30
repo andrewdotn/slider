@@ -215,29 +215,39 @@ function SlideView({
   };
 
   return (
-    <div className="slides">
-      <article className="current">
-        <SubSlideContext.Provider value={clampedSub}>
-          {error ? (
-            <pre className="mdx-error">{error}</pre>
-          ) : Content ? (
-            <Content components={{ Pause, SubSlide }} />
-          ) : null}
-        </SubSlideContext.Provider>
-        <nav>
-          {prevHref && (
-            <a href={prevHref} onClick={(e) => navigate(e, prevHref!)}>
-              Previous
-            </a>
-          )}
-          {nextHref && (
-            <a href={nextHref} onClick={(e) => navigate(e, nextHref!)}>
-              Next
-            </a>
-          )}
-        </nav>
-      </article>
-    </div>
+    <>
+      <div className="slides">
+        <article className="current">
+          <SubSlideContext.Provider value={clampedSub}>
+            {error ? (
+              <pre className="mdx-error">{error}</pre>
+            ) : Content ? (
+              <Content components={{ Pause, SubSlide }} />
+            ) : null}
+          </SubSlideContext.Provider>
+        </article>
+      </div>
+      {prevHref && (
+        <a
+          className="nav-arrow nav-prev"
+          href={prevHref}
+          aria-label="Previous"
+          onClick={(e) => navigate(e, prevHref!)}
+        >
+          ‹
+        </a>
+      )}
+      {nextHref && (
+        <a
+          className="nav-arrow nav-next"
+          href={nextHref}
+          aria-label="Next"
+          onClick={(e) => navigate(e, nextHref!)}
+        >
+          ›
+        </a>
+      )}
+    </>
   );
 }
 
