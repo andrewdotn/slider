@@ -16,7 +16,7 @@ beforeEach(() => {
 
 describe("Keyboard Navigation", () => {
   it("should navigate to next slide on ArrowRight", async () => {
-    window.history.pushState({}, "", "/sample-talk1/");
+    window.history.pushState({}, "", "/talks/sample-talk1/");
     const screen = await render(<App />);
 
     await expect.element(screen.getByText("Slide 1")).toBeVisible();
@@ -27,12 +27,12 @@ describe("Keyboard Navigation", () => {
     expect(pushStateSpy).toHaveBeenCalledWith(
       expect.anything(),
       "",
-      "/sample-talk1/slide-2",
+      "/talks/sample-talk1/slide-2",
     );
   });
 
   it("should navigate to previous slide on ArrowLeft", async () => {
-    window.history.pushState({}, "", "/sample-talk1/slide-2");
+    window.history.pushState({}, "", "/talks/sample-talk1/slide-2");
     const screen = await render(<App />);
 
     await expect.element(screen.getByText("Slide 2")).toBeVisible();
@@ -43,7 +43,7 @@ describe("Keyboard Navigation", () => {
     expect(pushStateSpy).toHaveBeenCalledWith(
       expect.anything(),
       "",
-      "/sample-talk1/",
+      "/talks/sample-talk1/",
     );
   });
 });

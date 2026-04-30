@@ -30,8 +30,8 @@ function useSlides(): {
     const parts = path.split("/").filter(Boolean);
     if (parts.length === 0) return;
 
-    const talk = parts[0];
-    const slideSlug = parts[1] ?? "";
+    const talk = parts[1];
+    const slideSlug = parts[2] ?? "";
 
     if (data && data.talk === talk) {
       const idx = data.slides.findIndex((s) => s.slug === slideSlug);
@@ -41,7 +41,7 @@ function useSlides(): {
       return;
     }
 
-    fetch(`/${talk}.md`)
+    fetch(`/talks-static/${talk}.md`)
       .then((res) => {
         if (!res.ok) throw new Error("Not found");
         return res.text();
@@ -85,13 +85,13 @@ function SlideView({
 
   const prevHref = prevSlide
     ? prevSlide.slug
-      ? `/${talk}/${prevSlide.slug}`
-      : `/${talk}/`
+      ? `/talks/${talk}/${prevSlide.slug}`
+      : `/talks/${talk}/`
     : null;
   const nextHref = nextSlide
     ? nextSlide.slug
-      ? `/${talk}/${nextSlide.slug}`
-      : `/${talk}/`
+      ? `/talks/${talk}/${nextSlide.slug}`
+      : `/talks/${talk}/`
     : null;
 
   const navigate = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -133,7 +133,7 @@ export function App() {
         target = slides[idx - 1];
       }
       if (target) {
-        const href = target.slug ? `/${talk}/${target.slug}` : `/${talk}/`;
+        const href = target.slug ? `/talks/${talk}/${target.slug}` : `/talks/${talk}/`;
         window.history.pushState({}, "", href);
         window.dispatchEvent(new PopStateEvent("popstate"));
       }

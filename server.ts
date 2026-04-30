@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 
 import * as path from "node:path";
 import { parseTalk } from "./slides.ts";
+import morgan from "morgan";
 
 export class Server {
   app: Express;
@@ -19,22 +20,53 @@ export class Server {
 
   constructor({ baseDir }: { baseDir?: string } = {}) {
     this.baseDir = baseDir;
-    this.app = express();
+    const app = express();
 
-    this.app.get("/hello", (req, res) => {
+    app.use(morgan('dev'));
+
+    app.get("/hello", (req, res) => {
       res.send("Hello World!");
     });
 
-    this.app.get("/", async (req, res) => {
-      const files = await fs.readdir(this.baseDir ?? ".");
+    app.get("/", async (req, res) => {
+      const files = await fs.readdir(this._relativePath("."));
       const mdFiles = files
         .filter((f) => f.endsWith(".md"))
         .map((f) => f.replace(/\.md$/, ""));
       const items = mdFiles
-        .map((name) => `<li><a href="/${name}/">${name}</a></li>`)
+        .map((name) => `<li><a href="/talks/${name}/">${name}</a></li>`)
         .join("\n");
       res.send(`<ul>\n${items}\n</ul>`);
     });
+
+    app.get("/talks/:talk/", async (req, res) => {
+      await this.serveSlide(req, res, req.params.talk, "");
+    });
+
+    app.get("/talks/:talk/:slide", async (req, res) => {
+      await this.serveSlide(req, res, req.params.talk, req.params.slide);
+    });
+
+    app.use('/talks-static/', express.static(this.baseDir ?? "."));
+
+    this.app = app;
+  }
+
+  private async _installViteMiddleware() {
+    const isTest = process.env.NODE_ENV === "test";
+    const vite = await createViteServer({
+      base: '/vite',
+      server: {
+        middlewareMode: true,
+        hmr: isTest ? false : undefined,
+        ws: isTest ? false : undefined,
+      },
+      optimizeDeps: { noDiscovery: isTest },
+      appType: "custom",
+    });
+    this.vite = vite;
+
+    this.app.use('/vite', vite.middlewares);
   }
 
   private _relativePath(p: string) {
@@ -63,7 +95,7 @@ export class Server {
         "utf-8",
       );
     } catch (e) {
-      console.error(i`error reading ${talkName}.md: ${e}`);
+      console.error(i`error reading ${talkName}: ${e}`);
       return false;
     }
 
@@ -71,47 +103,28 @@ export class Server {
     return slides.some((s) => s.slug === slideSlug);
   }
 
+  private async serveSlide(
+      req: express.Request,
+      res: express.Response,
+      talkName: string,
+      slideSlug: string,
+  ) {
+    const indexHtml = await fs.readFile("index.html", "utf-8");
+
+    if (!(await this.talkExists(talkName, slideSlug))) {
+      return res.status(404).send("Not found");
+    }
+
+    const html = await this.vite!.transformIndexHtml(req.originalUrl, indexHtml);
+    res.status(200).set({ "Content-Type": "text/html" }).end(html);
+  };
+
   async serve({
     port,
   }: {
     port?: number;
   } = {}): Promise<http.Server> {
-    const isTest = process.env.NODE_ENV === "test";
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: isTest ? false : undefined,
-        ws: isTest ? false : undefined,
-      },
-      optimizeDeps: { noDiscovery: isTest },
-      appType: "custom",
-    });
-    this.vite = vite;
-
-    this.app.use(vite.middlewares);
-
-    const indexHtml = await fs.readFile("index.html", "utf-8");
-
-    const serveSlide = async (
-      req: express.Request,
-      res: express.Response,
-      talkName: string,
-      slideSlug: string,
-    ) => {
-      if (!(await this.talkExists(talkName, slideSlug))) {
-        return res.status(404).send("Not found");
-      }
-      const html = await vite.transformIndexHtml(req.originalUrl, indexHtml);
-      res.status(200).set({ "Content-Type": "text/html" }).end(html);
-    };
-
-    this.app.get("/:talk/", async (req, res) => {
-      await serveSlide(req, res, req.params.talk, "");
-    });
-
-    this.app.get("/:talk/:slide", async (req, res) => {
-      await serveSlide(req, res, req.params.talk, req.params.slide);
-    });
+    await this._installViteMiddleware();
 
     const listenMaybeWithPort = (cb: () => void) => {
       if (port !== undefined) {

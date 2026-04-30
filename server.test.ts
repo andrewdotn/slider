@@ -69,11 +69,11 @@ describe("slider", () => {
     expect(res.status).to.equal(200);
     const body = await res.text();
     expect(body).to.contain("<ul>");
-    expect(body).to.contain('<a href="/sample-talk1/">sample-talk1</a>');
+    expect(body).to.contain('<a href="/talks/sample-talk1/">sample-talk1</a>');
   });
 
   test("sample-talk1 slide 1 serves html page", async ({ server }) => {
-    const res = await fetch(`${server.url}/sample-talk1/`);
+    const res = await fetch(`${server.url}/talks/sample-talk1/`);
     expect(res.status).to.equal(200);
     expect(res.headers.get("content-type")).to.contain("text/html");
     const body = await res.text();
@@ -82,7 +82,7 @@ describe("slider", () => {
   });
 
   test("sample-talk1 slide 2 serves html page", async ({ server }) => {
-    const res = await fetch(`${server.url}/sample-talk1/motivation`);
+    const res = await fetch(`${server.url}/talks/sample-talk1/motivation`);
     expect(res.status).to.equal(200);
     expect(res.headers.get("content-type")).to.contain("text/html");
     const body = await res.text();
@@ -90,7 +90,7 @@ describe("slider", () => {
   });
 
   test("sample-talk1 slide 3 serves html page", async ({ server }) => {
-    const res = await fetch(`${server.url}/sample-talk1/getting-started`);
+    const res = await fetch(`${server.url}/talks/sample-talk1/getting-started`);
     expect(res.status).to.equal(200);
     const body = await res.text();
     expect(body).to.contain('<div id="root"></div>');
@@ -102,12 +102,12 @@ describe("slider", () => {
   });
 
   test("nonexistent slide returns 404", async ({ server }) => {
-    const res = await fetch(`${server.url}/sample-talk1/no-such-slide`);
+    const res = await fetch(`${server.url}/talks/sample-talk1/no-such-slide`);
     expect(res.status).to.equal(404);
   });
 
   test("sample-talk1.md is served as static file", async ({ server }) => {
-    const res = await fetch(`${server.url}/sample-talk1.md`);
+    const res = await fetch(`${server.url}/talks-static/sample-talk1.md`);
     expect(res.status).to.equal(200);
     const body = await res.text();
     expect(body).to.contain("# Sample talk");
@@ -129,9 +129,14 @@ describe("slider", () => {
     // Ensure it's not showing files from the current directory
     expect(body).to.not.contain("sample-talk1");
 
-    const resSlide = await fetch(`${url}/${talkName}/`);
+    const resSlide = await fetch(`${url}/talks/${talkName}/`);
     expect(resSlide.status).to.equal(200);
     const slideBody = await resSlide.text();
     expect(slideBody).to.contain('<div id="root"></div>');
+
+    const resStatic = await fetch(`${url}/talks-static/${talkName}.md`);
+    expect(resStatic.status).to.equal(200);
+    const staticBody = await resStatic.text();
+    expect(staticBody).to.equal(talkContent);
   });
 });
