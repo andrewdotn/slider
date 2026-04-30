@@ -1,14 +1,40 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
 import { parseTalk, type Slide } from "./slides.ts";
+import {
+  Pause,
+  SubSlide,
+  SubSlideContext,
+  countSubSlides,
+  normalizeIndentedCode,
+  transformForSubSlide,
+} from "./subslides.tsx";
 
 type MDXContent = (props: Record<string, unknown>) => React.JSX.Element;
+
+function parseSubIdx(hash: string): number {
+  const m = hash.match(/^#(\d+)$/);
+  if (!m) return 1;
+  const n = Number(m[1]);
+  return n >= 1 ? n : 1;
+}
+
+function hrefFor(talk: string, slug: string, subIdx: number): string {
+  const path = slug ? `/talks/${talk}/${slug}` : `/talks/${talk}/`;
+  return subIdx > 1 ? `${path}#${subIdx}` : path;
+}
+
+function navigateTo(href: string) {
+  window.history.pushState({}, "", href);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
 
 function useSlides(): {
   talk: string;
   slides: Slide[];
   idx: number;
+  subIdx: number;
 } | null {
   const [data, setData] = useState<{
     talk: string;
@@ -17,13 +43,19 @@ function useSlides(): {
   } | null>(null);
 
   const [path, setPath] = useState(window.location.pathname);
+  const [hash, setHash] = useState(window.location.hash);
 
   useEffect(() => {
     const handlePopState = () => {
       setPath(window.location.pathname);
+      setHash(window.location.hash);
     };
     window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    window.addEventListener("hashchange", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("hashchange", handlePopState);
+    };
   }, []);
 
   const fetchTalk = async (talk: string, slideSlug: string) => {
@@ -67,63 +99,74 @@ function useSlides(): {
     return () => es.close();
   }, [data?.talk, data?.idx]);
 
-  return data;
+  if (!data) return null;
+  return { ...data, subIdx: parseSubIdx(hash) };
 }
 
 function SlideView({
   talk,
   slides,
   idx,
+  subIdx,
 }: {
   talk: string;
   slides: Slide[];
   idx: number;
+  subIdx: number;
 }) {
   const [Content, setContent] = useState<MDXContent | null>(null);
 
   const slide = slides[idx];
+  const subCount = useMemo(() => countSubSlides(slide.content), [slide.content]);
+  const clampedSub = Math.min(Math.max(1, subIdx), subCount);
 
   useEffect(() => {
-    evaluate(slide.content, {
+    const normalized = normalizeIndentedCode(slide.content);
+    const transformed = transformForSubSlide(normalized, clampedSub);
+    evaluate(transformed, {
       ...(runtime as any),
-      format: "md",
     }).then((mod) => {
       setContent(() => mod.default);
     });
-  }, [slide.content]);
+  }, [slide.content, clampedSub]);
 
   const prevSlide = idx > 0 ? slides[idx - 1] : null;
   const nextSlide = idx < slides.length - 1 ? slides[idx + 1] : null;
 
-  const prevHref = prevSlide
-    ? prevSlide.slug
-      ? `/talks/${talk}/${prevSlide.slug}`
-      : `/talks/${talk}/`
-    : null;
-  const nextHref = nextSlide
-    ? nextSlide.slug
-      ? `/talks/${talk}/${nextSlide.slug}`
-      : `/talks/${talk}/`
-    : null;
+  let prevHref: string | null = null;
+  if (clampedSub > 1) {
+    prevHref = hrefFor(talk, slide.slug, clampedSub - 1);
+  } else if (prevSlide) {
+    const prevSubCount = countSubSlides(prevSlide.content);
+    prevHref = hrefFor(talk, prevSlide.slug, prevSubCount);
+  }
+
+  let nextHref: string | null = null;
+  if (clampedSub < subCount) {
+    nextHref = hrefFor(talk, slide.slug, clampedSub + 1);
+  } else if (nextSlide) {
+    nextHref = hrefFor(talk, nextSlide.slug, 1);
+  }
 
   const navigate = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
-    window.history.pushState({}, "", href);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    navigateTo(href);
   };
 
   return (
     <div className="slides">
       <article className="current">
-        {Content ? <Content /> : null}
+        <SubSlideContext.Provider value={clampedSub}>
+          {Content ? <Content components={{ Pause, SubSlide }} /> : null}
+        </SubSlideContext.Provider>
         <nav>
           {prevHref && (
-            <a href={prevHref} onClick={(e) => navigate(e, prevHref)}>
+            <a href={prevHref} onClick={(e) => navigate(e, prevHref!)}>
               Previous
             </a>
           )}
           {nextHref && (
-            <a href={nextHref} onClick={(e) => navigate(e, nextHref)}>
+            <a href={nextHref} onClick={(e) => navigate(e, nextHref!)}>
               Next
             </a>
           )}
@@ -138,19 +181,27 @@ export function App() {
 
   useEffect(() => {
     if (!data) return;
-    const { talk, slides, idx } = data;
+    const { talk, slides, idx, subIdx } = data;
+    const slide = slides[idx];
+    const subCount = countSubSlides(slide.content);
+    const clampedSub = Math.min(Math.max(1, subIdx), subCount);
     const handleKeyDown = (e: KeyboardEvent) => {
-      let target: Slide | null = null;
-      if (e.key === "ArrowRight" && idx < slides.length - 1) {
-        target = slides[idx + 1];
-      } else if (e.key === "ArrowLeft" && idx > 0) {
-        target = slides[idx - 1];
+      let href: string | null = null;
+      if (e.key === "ArrowRight") {
+        if (clampedSub < subCount) {
+          href = hrefFor(talk, slide.slug, clampedSub + 1);
+        } else if (idx < slides.length - 1) {
+          href = hrefFor(talk, slides[idx + 1].slug, 1);
+        }
+      } else if (e.key === "ArrowLeft") {
+        if (clampedSub > 1) {
+          href = hrefFor(talk, slide.slug, clampedSub - 1);
+        } else if (idx > 0) {
+          const prev = slides[idx - 1];
+          href = hrefFor(talk, prev.slug, countSubSlides(prev.content));
+        }
       }
-      if (target) {
-        const href = target.slug ? `/talks/${talk}/${target.slug}` : `/talks/${talk}/`;
-        window.history.pushState({}, "", href);
-        window.dispatchEvent(new PopStateEvent("popstate"));
-      }
+      if (href) navigateTo(href);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -160,5 +211,12 @@ export function App() {
     return <div>Loading...</div>;
   }
 
-  return <SlideView talk={data.talk} slides={data.slides} idx={data.idx} />;
+  return (
+    <SlideView
+      talk={data.talk}
+      slides={data.slides}
+      idx={data.idx}
+      subIdx={data.subIdx}
+    />
+  );
 }

@@ -4,13 +4,24 @@ import * as runtime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 import { parseTalk } from "./slides.ts";
+import {
+  Pause,
+  SubSlide,
+  SubSlideContext,
+  normalizeIndentedCode,
+  transformForSubSlide,
+} from "./subslides.tsx";
 
-async function renderMdx(mdx: string): Promise<string> {
-  const { default: Content } = await evaluate(mdx, {
+async function renderMdx(mdx: string, subIdx: number = 1): Promise<string> {
+  const transformed = transformForSubSlide(normalizeIndentedCode(mdx), subIdx);
+  const { default: Content } = await evaluate(transformed, {
     ...(runtime as any),
-    format: "md",
   });
-  return renderToStaticMarkup(<Content />);
+  return renderToStaticMarkup(
+    <SubSlideContext.Provider value={subIdx}>
+      <Content components={{ Pause, SubSlide }} />
+    </SubSlideContext.Provider>,
+  );
 }
 
 describe("MDX rendering", () => {
@@ -44,6 +55,35 @@ describe("MDX rendering", () => {
     expect(html2).to.contain("Some details");
   });
 
+  it("renders Pause sub-slides cumulatively", async () => {
+    const src = "# A\n\n- one\n<Pause/>\n- two\n";
+    const html1 = await renderMdx(src, 1);
+    expect(html1).toContain("<li>one</li>");
+    expect(html1).toContain('style="visibility:hidden"');
+    expect(html1).toContain("two");
+
+    const html2 = await renderMdx(src, 2);
+    expect(html2).toContain("two");
+    expect(html2).not.toContain("visibility:hidden");
+  });
+
+  it("renders SubSlide tags using the when predicate", async () => {
+    const src = '# A\n\n<SubSlide when="2">later</SubSlide>\n';
+    const html1 = await renderMdx(src, 1);
+    expect(html1).toContain('style="visibility:hidden"');
+    const html2 = await renderMdx(src, 2);
+    expect(html2).not.toContain("visibility:hidden");
+    expect(html2).toContain("later");
+  });
+
+  it("preserves curly braces in indented code blocks", async () => {
+    const src = "# Code\n\n    int main() {\n      return 0;\n    }\n";
+    const html = await renderMdx(src);
+    expect(html).toContain("int main()");
+    expect(html).toContain("{");
+    expect(html).toContain("}");
+  });
+
   it("renders the sample-talk1 slides as MDX", async () => {
     const fs = await import("node:fs/promises");
     const markdown = await fs.readFile("sample-talk1.md", "utf-8");
@@ -52,11 +92,13 @@ describe("MDX rendering", () => {
     const html0 = await renderMdx(slides[0].content);
     expect(html0).to.contain("<h1>Sample talk</h1>");
 
-    const html1 = await renderMdx(slides[1].content);
+    const motivation = slides.find((s) => s.slug === "motivation")!;
+    const html1 = await renderMdx(motivation.content);
     expect(html1).to.contain("<h2>Motivation</h2>");
-    expect(html1).to.contain("<li>Reason 1</li>");
+    expect(html1).to.contain("Reason 1");
 
-    const html2 = await renderMdx(slides[2].content);
+    const gettingStarted = slides.find((s) => s.slug === "getting-started")!;
+    const html2 = await renderMdx(gettingStarted.content);
     expect(html2).to.contain("<h2>Getting started</h2>");
     expect(html2).to.contain("<em>the code</em>");
   });

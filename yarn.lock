@@ -2982,7 +2982,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"remark-mdx@npm:^3.0.0":
+"remark-mdx@npm:^3.0.0, remark-mdx@npm:^3.1.1":
   version: 3.1.1
   resolution: "remark-mdx@npm:3.1.1"
   dependencies:
@@ -3106,7 +3106,11 @@ __metadata:
     prettier: "npm:^3.8.3"
     react: "npm:^19.2.5"
     react-dom: "npm:^19.2.5"
+    remark-mdx: "npm:^3.1.1"
+    remark-parse: "npm:^11.0.0"
     typescript: "npm:^6.0.3"
+    unified: "npm:^11.0.5"
+    unist-util-visit: "npm:^5.1.0"
     vite: "npm:^8.0.9"
     vitest: "npm:4.1.5"
     vitest-browser-react: "npm:^2.2.0"
@@ -3534,7 +3538,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"unified@npm:^11.0.0":
+"unified@npm:^11.0.0, unified@npm:^11.0.5":
   version: 11.0.5
   resolution: "unified@npm:11.0.5"
   dependencies:
@@ -3595,7 +3599,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"unist-util-visit@npm:^5.0.0":
+"unist-util-visit@npm:^5.0.0, unist-util-visit@npm:^5.1.0":
   version: 5.1.0
   resolution: "unist-util-visit@npm:5.1.0"
   dependencies:
