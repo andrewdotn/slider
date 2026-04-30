@@ -126,20 +126,20 @@ export class Server {
   } = {}): Promise<http.Server> {
     await this._installViteMiddleware();
 
-    const listenMaybeWithPort = (cb: () => void) => {
-      if (port !== undefined) {
-        return this.app.listen(port, cb);
-      } else {
-        return this.app.listen(cb);
-      }
-    };
+    const server = http.createServer(this.app);
 
-    return new Promise((resolve) => {
-      const server = listenMaybeWithPort(() => {
+    return new Promise((resolve, reject) => {
+      server.on("error", reject);
+      server.on("listening", () => {
         console.log(i`now listening on ${server.address()}`);
         this.listeningServer = server;
         resolve(server);
       });
+      if (port !== undefined) {
+        server.listen(port);
+      } else {
+        server.listen();
+      }
     });
   }
 
