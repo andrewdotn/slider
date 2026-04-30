@@ -12,14 +12,14 @@ export default defineConfig({
           name: "node",
           environment: "node",
           include: ["**/*.test.ts", "app.test.tsx"],
-          exclude: ["**/node_modules/**", "keyboard-nav.test.tsx"],
+          exclude: ["**/node_modules/**", "keyboard-nav.test.tsx", "mdx-error.test.tsx"],
         },
       },
       {
         extends: true,
         test: {
           name: "browser",
-          include: ["keyboard-nav.test.tsx"],
+          include: ["keyboard-nav.test.tsx", "mdx-error.test.tsx"],
           exclude: ["**/node_modules/**"],
           browser: {
             enabled: true,

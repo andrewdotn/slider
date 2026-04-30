@@ -601,3 +601,14 @@ figcaption {
   -moz-border-radius: 10px;
   -webkit-border-radius: 10px;
 }
+
+.mdx-error {
+  background: #fee;
+  color: #900;
+  border: 1px solid #c00;
+  padding: 1em;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 0.9em;
+  text-align: left;
+}

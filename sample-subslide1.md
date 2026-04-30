@@ -16,6 +16,6 @@
 - Disadvantages
 </SubSlide>
 
-<SubSlide when="4">
+<SubSlide when=4>
     - Complicated
 </SubSlide>

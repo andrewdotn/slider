@@ -13,6 +13,46 @@ import {
 
 type MDXContent = (props: Record<string, unknown>) => React.JSX.Element;
 
+function formatError(err: unknown, source?: string): string {
+  const e = err as {
+    reason?: string;
+    message?: string;
+    line?: number;
+    column?: number;
+    place?: { start?: { line?: number; column?: number } };
+    stack?: string;
+  } | null;
+
+  const line = e?.line ?? e?.place?.start?.line;
+  const column = e?.column ?? e?.place?.start?.column;
+  const reason = e?.reason ?? e?.message ?? String(err);
+
+  let header = reason;
+  if (line != null) {
+    header = `Line ${line}${column != null ? `:${column}` : ""}: ${reason}`;
+  }
+
+  if (source && line != null) {
+    const lines = source.split("\n");
+    const idx = line - 1;
+    const start = Math.max(0, idx - 2);
+    const end = Math.min(lines.length, idx + 3);
+    const width = String(end).length;
+    const excerpt: string[] = [];
+    for (let i = start; i < end; i++) {
+      const num = String(i + 1).padStart(width, " ");
+      const marker = i === idx ? ">" : " ";
+      excerpt.push(`${marker} ${num} | ${lines[i]}`);
+      if (i === idx && column != null) {
+        excerpt.push(`${" ".repeat(width + 4)}${" ".repeat(Math.max(0, column - 1))}^`);
+      }
+    }
+    return `${header}\n\n${excerpt.join("\n")}`;
+  }
+
+  return header;
+}
+
 function parseSubIdx(hash: string): number {
   const m = hash.match(/^#(\d+)$/);
   if (!m) return 1;
@@ -115,20 +155,41 @@ function SlideView({
   subIdx: number;
 }) {
   const [Content, setContent] = useState<MDXContent | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const slide = slides[idx];
-  const subCount = useMemo(() => countSubSlides(slide.content), [slide.content]);
+  const { subCount, parseError } = useMemo(() => {
+    try {
+      return { subCount: countSubSlides(slide.content), parseError: null as string | null };
+    } catch (err) {
+      return { subCount: 1, parseError: formatError(err, normalizeIndentedCode(slide.content)) };
+    }
+  }, [slide.content]);
   const clampedSub = Math.min(Math.max(1, subIdx), subCount);
 
   useEffect(() => {
+    if (parseError) {
+      setError(parseError);
+      return;
+    }
+    let cancelled = false;
     const normalized = normalizeIndentedCode(slide.content);
     const transformed = transformForSubSlide(normalized, clampedSub);
-    evaluate(transformed, {
-      ...(runtime as any),
-    }).then((mod) => {
-      setContent(() => mod.default);
-    });
-  }, [slide.content, clampedSub]);
+    (async () => {
+      try {
+        const mod = await evaluate(transformed, { ...(runtime as any) });
+        if (cancelled) return;
+        setError(null);
+        setContent(() => mod.default);
+      } catch (err) {
+        if (cancelled) return;
+        setError(formatError(err, transformed));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slide.content, clampedSub, parseError]);
 
   const prevSlide = idx > 0 ? slides[idx - 1] : null;
   const nextSlide = idx < slides.length - 1 ? slides[idx + 1] : null;
@@ -157,7 +218,11 @@ function SlideView({
     <div className="slides">
       <article className="current">
         <SubSlideContext.Provider value={clampedSub}>
-          {Content ? <Content components={{ Pause, SubSlide }} /> : null}
+          {error ? (
+            <pre className="mdx-error">{error}</pre>
+          ) : Content ? (
+            <Content components={{ Pause, SubSlide }} />
+          ) : null}
         </SubSlideContext.Provider>
         <nav>
           {prevHref && (
@@ -183,7 +248,12 @@ export function App() {
     if (!data) return;
     const { talk, slides, idx, subIdx } = data;
     const slide = slides[idx];
-    const subCount = countSubSlides(slide.content);
+    let subCount = 1;
+    try {
+      subCount = countSubSlides(slide.content);
+    } catch {
+      // Slide MDX is broken; SlideView will render the error.
+    }
     const clampedSub = Math.min(Math.max(1, subIdx), subCount);
     const handleKeyDown = (e: KeyboardEvent) => {
       let href: string | null = null;
@@ -198,7 +268,13 @@ export function App() {
           href = hrefFor(talk, slide.slug, clampedSub - 1);
         } else if (idx > 0) {
           const prev = slides[idx - 1];
-          href = hrefFor(talk, prev.slug, countSubSlides(prev.content));
+          let prevCount = 1;
+          try {
+            prevCount = countSubSlides(prev.content);
+          } catch {
+            // ignore
+          }
+          href = hrefFor(talk, prev.slug, prevCount);
         }
       }
       if (href) navigateTo(href);
