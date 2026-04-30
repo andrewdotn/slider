@@ -29,18 +29,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Slide dimensions — adjust these to change the slide size and aspect ratio.
- * The slide scales to fill the viewport while preserving this aspect ratio.
- * Some examples:
- *   960 x 540  — 16:9, matches 1920x1080 displays
- *   960 x 600  — 8:5, good for windowed browsers (tabs/URL bar eat height)
- *   960 x 700  — ~4:3, the original Go present ratio
- */
-:root {
-  --slide-width: 960px;
-  --slide-height: 600px;
-}
-
 @media screen {
   /* Framework */
   html {
@@ -92,16 +80,16 @@
     position: absolute;
     overflow: auto;
 
-    width: var(--slide-width);
-    height: var(--slide-height);
+    width: 900px;
+    height: 700px;
 
     left: 50%;
     top: 50%;
 
-    margin-left: calc(var(--slide-width) / -2);
-    margin-top: calc(var(--slide-height) / -2);
+    margin-left: -450px;
+    margin-top: -350px;
 
-    padding: 30px 40px;
+    padding: 40px 60px;
 
     box-sizing: border-box;
     -o-box-sizing: border-box;
@@ -116,10 +104,6 @@
     background-color: white;
 
     border: 1px solid rgba(0, 0, 0, 0.3);
-
-    /* --slide-scale is set by a small script in index.html that fits the
-     * fixed-size slide to the viewport. */
-    scale: var(--slide-scale, 1);
 
     transition: transform 0.3s ease-out;
     -o-transition: -o-transform 0.3s ease-out;
@@ -151,13 +135,13 @@
     left: 0;
     top: 0;
     width: 150px;
-    height: var(--slide-height);
+    height: 700px;
 
     left: 50%;
     top: 50%;
 
     cursor: pointer;
-    margin-top: calc(var(--slide-height) / -2);
+    margin-top: -350px;
 
     tap-highlight-color: transparent;
     -o-tap-highlight-color: transparent;
@@ -351,7 +335,7 @@ h1 {
 
   padding: 0;
   margin: 0;
-  margin-top: 20px;
+  margin-top: 200px;
   margin-bottom: 5px;
   padding-right: 40px;
 
@@ -366,9 +350,11 @@ h2 {
   font-size: 45px;
   line-height: 45px;
 
+  position: absolute;
+  bottom: 150px;
+
   padding: 0;
   margin: 0;
-  margin-bottom: 20px;
   padding-right: 40px;
 
   font-weight: 600;
