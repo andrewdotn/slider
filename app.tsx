@@ -232,20 +232,24 @@ function SlideView({
       ({
         minDepth = 1,
         maxDepth = 3,
+        skipCurrentSlide = true,
       }: {
         minDepth?: number;
         maxDepth?: number;
+        skipCurrentSlide?: boolean;
       }) => {
         type Node = { slide: Slide; title: string; children: Node[] };
         const roots: Node[] = [];
         const stack: { depth: number; siblings: Node[] }[] = [
           { depth: minDepth - 1, siblings: roots },
         ];
-        for (const slide of slides) {
-          const h = slideHeading(slide.content);
+        for (let i = 0; i < slides.length; i++) {
+          if (skipCurrentSlide && i === idx) continue;
+          const s = slides[i];
+          const h = slideHeading(s.content);
           if (!h || h.depth < minDepth || h.depth > maxDepth) continue;
           while (stack[stack.length - 1].depth >= h.depth) stack.pop();
-          const node: Node = { slide, title: h.title, children: [] };
+          const node: Node = { slide: s, title: h.title, children: [] };
           stack[stack.length - 1].siblings.push(node);
           stack.push({ depth: h.depth, siblings: node.children });
         }
@@ -272,7 +276,7 @@ function SlideView({
         );
         return renderList(roots);
       },
-    [talk, slides],
+    [talk, slides, idx],
   );
 
   const prevSlide = idx > 0 ? slides[idx - 1] : null;

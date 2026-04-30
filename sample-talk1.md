@@ -2,6 +2,10 @@
 
 Author
 
+## Contents
+
+<TableOfContents minDepth="2"/>
+
 ## Motivation
 
 Why?

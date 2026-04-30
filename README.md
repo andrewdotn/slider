@@ -18,7 +18,11 @@ inspired by LaTeX's beamer.
         appears on some subslides but not others
 
   - `<TableOfContents/>` tag with optional `minDepth` and `maxDepth`
-    attributes, e.g., 
+    attributes, e.g., `<TableOfContents minDepth="2" maxdepth="4"/>
+    to show h2/h3/h4 tags.
+
+      - There's also an optional `skipCurrentSlide={true}` option that by
+        default hides table of contents slides from the table of contents.
 
   - Highlighting inside code blocks -- end a line with `//HL` or `#HL` to
     have the background appear bright yellow. Repeat the `HL` bit for lines
