@@ -1,0 +1,42 @@
+/* Slide dimensions — adjust these to change the slide size and aspect ratio.
+ * The slide scales to fill the viewport while preserving this aspect ratio.
+ * Some examples:
+ *   960 x 540  — 16:9, matches 1920x1080 displays
+ *   960 x 600  — 8:5, good for windowed browsers (tabs/URL bar eat height)
+ *   960 x 700  — ~4:3, the original Go present ratio
+ */
+:root {
+  --slide-width: 960px;
+  --slide-height: 600px;
+}
+
+@media screen {
+  .slides > article {
+    width: var(--slide-width);
+    height: var(--slide-height);
+
+    margin-left: calc(var(--slide-width) / -2);
+    margin-top: calc(var(--slide-height) / -2);
+
+    padding: 30px 40px;
+
+    /* --slide-scale is set by a small script in index.html that fits the
+     * fixed-size slide to the viewport. */
+    scale: var(--slide-scale, 1);
+  }
+
+  .slide-area {
+    height: var(--slide-height);
+    margin-top: calc(var(--slide-height) / -2);
+  }
+}
+
+h1 {
+  margin-top: 20px;
+}
+
+h2 {
+  position: static;
+  bottom: auto;
+  margin-bottom: 20px;
+}
