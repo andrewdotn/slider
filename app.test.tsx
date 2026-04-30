@@ -5,23 +5,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 import { parseTalk } from "./slides.ts";
 import {
-  Pause,
-  SubSlide,
-  SubSlideContext,
   normalizeIndentedCode,
   transformForSubSlide,
 } from "./subslides.tsx";
 
 async function renderMdx(mdx: string, subIdx: number = 1): Promise<string> {
-  const transformed = transformForSubSlide(normalizeIndentedCode(mdx), subIdx);
+  const transformed = transformForSubSlide(
+    normalizeIndentedCode(mdx),
+    subIdx,
+  );
   const { default: Content } = await evaluate(transformed, {
     ...(runtime as any),
   });
-  return renderToStaticMarkup(
-    <SubSlideContext.Provider value={subIdx}>
-      <Content components={{ Pause, SubSlide }} />
-    </SubSlideContext.Provider>,
-  );
+  return renderToStaticMarkup(<Content components={{}} />);
 }
 
 describe("MDX rendering", () => {
@@ -55,24 +51,22 @@ describe("MDX rendering", () => {
     expect(html2).to.contain("Some details");
   });
 
-  it("renders Pause sub-slides cumulatively", async () => {
-    const src = "# A\n\n- one\n<Pause/>\n- two\n";
+  it("renders Sl.Pause sub-slides cumulatively", async () => {
+    const src = "# A\n\n- one\n<Sl.Pause/>\n- two\n";
     const html1 = await renderMdx(src, 1);
-    expect(html1).toContain("<li>one</li>");
-    expect(html1).toContain('style="visibility:hidden"');
-    expect(html1).toContain("two");
+    expect(html1).toContain("one");
+    expect(html1).not.toContain("two");
 
     const html2 = await renderMdx(src, 2);
+    expect(html2).toContain("one");
     expect(html2).toContain("two");
-    expect(html2).not.toContain("visibility:hidden");
   });
 
-  it("renders SubSlide tags using the when predicate", async () => {
-    const src = '# A\n\n<SubSlide when="2">later</SubSlide>\n';
+  it("renders Sl.Span tags using the when predicate", async () => {
+    const src = '# A\n\n<Sl.Span when="2">later</Sl.Span>\n';
     const html1 = await renderMdx(src, 1);
-    expect(html1).toContain('style="visibility:hidden"');
+    expect(html1).not.toContain("later");
     const html2 = await renderMdx(src, 2);
-    expect(html2).not.toContain("visibility:hidden");
     expect(html2).toContain("later");
   });
 

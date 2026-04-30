@@ -3,9 +3,6 @@ import { evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
 import { parseTalk, slideHeading, type Slide } from "./slides.ts";
 import {
-  Pause,
-  SubSlide,
-  SubSlideContext,
   countSubSlides,
   normalizeIndentedCode,
   transformForSubSlide,
@@ -274,13 +271,11 @@ function SlideView({
     <>
       <div className="slides">
         <article className="current">
-          <SubSlideContext.Provider value={clampedSub}>
-            {error ? (
-              <pre className="mdx-error">{error}</pre>
-            ) : Content ? (
-              <Content components={{ Pause, SubSlide, TableOfContents }} />
-            ) : null}
-          </SubSlideContext.Provider>
+          {error ? (
+            <pre className="mdx-error">{error}</pre>
+          ) : Content ? (
+            <Content components={{ TableOfContents }} />
+          ) : null}
         </article>
       </div>
       {prevHref && (

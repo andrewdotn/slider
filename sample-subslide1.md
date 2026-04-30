@@ -2,24 +2,24 @@
 
 <TableOfContents/>
 
-## Slide 1
+## Slide 1a
 
 - One thing
-  <Pause/>
+  <Sl.Pause/>
 - Another thing
 
 ## Slide 2
 
 - Advantages
 
-    <SubSlide when="2">
+    <Sl.Span when="2">
     - Fast
-    </SubSlide>
+    </Sl.Span>
 
-<SubSlide when="3-">
+<Sl.Span when="3-">
 - Disadvantages
-</SubSlide>
+</Sl.Span>
 
-<SubSlide when="4">
+<Sl.Span when="4">
     - Complicated
-</SubSlide>
+</Sl.Span>

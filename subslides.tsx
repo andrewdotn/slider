@@ -1,31 +1,7 @@
-import React, { createContext, useContext } from "react";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
-import remarkMdx from "remark-mdx";
 import { visit } from "unist-util-visit";
 import type { Root } from "mdast";
-
-export const SubSlideContext = createContext<number>(1);
-
-export function Pause(): null {
-  return null;
-}
-
-export function SubSlide({
-  when,
-  children,
-}: {
-  when?: string | number;
-  children?: React.ReactNode;
-}): React.ReactElement {
-  const n = useContext(SubSlideContext);
-  const spec = when === undefined ? "1-" : String(when);
-  const visible = parseWhen(spec).match(n);
-  if (visible) {
-    return <>{children}</>;
-  }
-  return <span style={{ visibility: "hidden" }}>{children}</span>;
-}
 
 export interface WhenSpec {
   match(n: number): boolean;
@@ -71,16 +47,8 @@ export function parseWhen(spec: string): WhenSpec {
   };
 }
 
-function parseLite(src: string): Root {
-  return unified().use(remarkParse).parse(src) as Root;
-}
-
-function parseMdx(src: string): Root {
-  return unified().use(remarkParse).use(remarkMdx).parse(src) as Root;
-}
-
 export function normalizeIndentedCode(src: string): string {
-  const tree = parseLite(src);
+  const tree = unified().use(remarkParse).parse(src) as Root;
   const replacements: Array<{ start: number; end: number; text: string }> = [];
   visit(tree, "code", (node: any) => {
     const start = node.position?.start?.offset;
@@ -101,81 +69,133 @@ export function normalizeIndentedCode(src: string): string {
   return out;
 }
 
-function findPauseAndSubSlides(tree: Root) {
-  const pauses: Array<{ start: number; end: number }> = [];
-  let maxSubSlide = 0;
-  visit(tree, (node: any) => {
-    if (
-      node.type !== "mdxJsxFlowElement" &&
-      node.type !== "mdxJsxTextElement"
-    ) {
-      return;
-    }
-    const pos = node.position;
-    if (!pos) return;
-    if (node.name === "Pause") {
-      pauses.push({ start: pos.start.offset, end: pos.end.offset });
-    } else if (node.name === "SubSlide") {
-      const attr = (node.attributes ?? []).find(
-        (a: any) => a.type === "mdxJsxAttribute" && a.name === "when",
+type PauseEvent = {
+  kind: "pause";
+  start: number;
+  end: number;
+  firesAt: number;
+};
+type SpanEvent = {
+  kind: "span";
+  openStart: number;
+  openEnd: number;
+  closeStart: number;
+  closeEnd: number;
+  when: string;
+};
+type Event = PauseEvent | SpanEvent;
+
+const SPAN_CLOSE = "</Sl.Span>";
+
+function scan(src: string): Event[] {
+  const events: Event[] = [];
+
+  const pauseRe = /<Sl\.Pause\s*\/>/g;
+  let m: RegExpExecArray | null;
+  while ((m = pauseRe.exec(src)) !== null) {
+    events.push({
+      kind: "pause",
+      start: m.index,
+      end: m.index + m[0].length,
+      firesAt: 0,
+    });
+  }
+
+  const spanOpenRe = /<Sl\.Span\b([^>]*)>/g;
+  while ((m = spanOpenRe.exec(src)) !== null) {
+    const openStart = m.index;
+    const openEnd = m.index + m[0].length;
+    const attrs = m[1];
+    const whenMatch = attrs.match(
+      /when\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/,
+    );
+    if (!whenMatch) {
+      throw new Error(
+        `<Sl.Span> at offset ${openStart} is missing a when= attribute`,
       );
-      const whenValue =
-        typeof attr?.value === "string"
-          ? attr.value
-          : (attr?.value?.value ?? "1-");
-      const ub = parseWhen(String(whenValue)).upperBound();
-      if (ub !== null && ub > maxSubSlide) maxSubSlide = ub;
     }
-  });
-  pauses.sort((a, b) => a.start - b.start);
-  return { pauses, maxSubSlide };
+    const when = whenMatch[1] ?? whenMatch[2] ?? whenMatch[3];
+    const closeIdx = src.indexOf(SPAN_CLOSE, openEnd);
+    if (closeIdx === -1) {
+      throw new Error(
+        `<Sl.Span> at offset ${openStart} has no matching </Sl.Span>`,
+      );
+    }
+    events.push({
+      kind: "span",
+      openStart,
+      openEnd,
+      closeStart: closeIdx,
+      closeEnd: closeIdx + SPAN_CLOSE.length,
+      when,
+    });
+  }
+
+  events.sort((a, b) => startOf(a) - startOf(b));
+
+  let maxSoFar = 1;
+  for (const ev of events) {
+    if (ev.kind === "pause") {
+      ev.firesAt = maxSoFar + 1;
+      maxSoFar = ev.firesAt;
+    } else {
+      const ub = parseWhen(ev.when).upperBound();
+      if (ub !== null && ub > maxSoFar) maxSoFar = ub;
+    }
+  }
+  return events;
+}
+
+function startOf(ev: Event): number {
+  return ev.kind === "pause" ? ev.start : ev.openStart;
 }
 
 export function countSubSlides(src: string): number {
-  const tree = parseMdx(normalizeIndentedCode(src));
-  const { pauses, maxSubSlide } = findPauseAndSubSlides(tree);
-  return Math.max(1 + pauses.length, maxSubSlide || 1);
-}
-
-function stripRanges(
-  src: string,
-  ranges: Array<{ start: number; end: number }>,
-): string {
-  const sorted = [...ranges].sort((a, b) => b.start - a.start);
-  let out = src;
-  for (const r of sorted) {
-    out = out.slice(0, r.start) + out.slice(r.end);
+  const events = scan(src);
+  if (events.length === 0) return 1;
+  let maxSoFar = 1;
+  for (const ev of events) {
+    if (ev.kind === "pause") {
+      maxSoFar = ev.firesAt;
+    } else {
+      const ub = parseWhen(ev.when).upperBound();
+      if (ub !== null && ub > maxSoFar) maxSoFar = ub;
+    }
   }
-  return out;
+  return maxSoFar;
 }
 
 export function transformForSubSlide(src: string, n: number): string {
-  const normalized = normalizeIndentedCode(src);
-  const tree = parseMdx(normalized);
-  const { pauses } = findPauseAndSubSlides(tree);
+  const events = scan(src);
 
-  if (pauses.length === 0 || n > pauses.length) {
-    return stripRanges(normalized, pauses);
+  let cutoff = src.length;
+  for (const ev of events) {
+    if (ev.kind === "pause" && ev.firesAt > n) {
+      cutoff = ev.start;
+      break;
+    }
   }
 
-  const cutPoint = pauses[n - 1].start;
-  const visiblePart = stripRanges(
-    normalized.slice(0, cutPoint),
-    pauses
-      .filter((p) => p.end <= cutPoint)
-      .map((p) => ({ start: p.start, end: p.end })),
-  );
-  const hiddenPart = stripRanges(
-    normalized.slice(cutPoint),
-    pauses
-      .filter((p) => p.start >= cutPoint)
-      .map((p) => ({ start: p.start - cutPoint, end: p.end - cutPoint })),
-  );
+  const edits: Array<{ start: number; end: number }> = [];
+  for (const ev of events) {
+    if (ev.kind === "pause") {
+      if (ev.start >= cutoff) break;
+      edits.push({ start: ev.start, end: ev.end });
+    } else {
+      if (ev.openStart >= cutoff) continue;
+      if (parseWhen(ev.when).match(n)) {
+        edits.push({ start: ev.openStart, end: ev.openEnd });
+        edits.push({ start: ev.closeStart, end: ev.closeEnd });
+      } else {
+        edits.push({ start: ev.openStart, end: ev.closeEnd });
+      }
+    }
+  }
 
-  return (
-    visiblePart +
-    '\n\n<div style={{visibility: "hidden"}}>\n\n' +
-    hiddenPart +
-    "\n\n</div>\n\n"
-  );
+  edits.sort((a, b) => b.start - a.start);
+  let body = src.slice(0, cutoff);
+  for (const e of edits) {
+    body = body.slice(0, e.start) + body.slice(e.end);
+  }
+  return body;
 }

@@ -7,24 +7,24 @@ Author
 Why?
 
   - Reason 1
-<Pause/>
+<Sl.Pause/>
   - Reason 2
 
 ## Tradeoffs
 
   - Advantages
 
-      <Sl.SubSlide when="2-">
+      <Sl.Span when="2">
       - Fast
-      </SubSlide>
+      </Sl.Span>
 
-   <Pause>
-   - Disadvantages
-   </Pause>
+  <Sl.Pause/>
 
-<SubSlide when="4">
-  - Complicated
-</SubSlide>
+  - Disadvantages
+
+  <Sl.Span when="4">
+      - Complicated
+  </Sl.Span>
 
 ## Getting started
 

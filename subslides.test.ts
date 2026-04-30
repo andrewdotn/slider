@@ -56,19 +56,99 @@ describe("countSubSlides", () => {
     expect(countSubSlides("# Hi\n\nplain text\n")).toBe(1);
   });
 
-  it("counts Pause markers", () => {
-    const src = `# A\n\n- one\n<Pause/>\n- two\n<Pause/>\n- three\n`;
+  it("counts Sl.Pause markers", () => {
+    const src = `# A\n\n- one\n<Sl.Pause/>\n- two\n<Sl.Pause/>\n- three\n`;
     expect(countSubSlides(src)).toBe(3);
   });
 
-  it("respects SubSlide when ranges", () => {
-    const src = `# A\n\n<SubSlide when="3">x</SubSlide>\n`;
+  it("respects Sl.Span when ranges", () => {
+    const src = `# A\n\n<Sl.Span when="3">x</Sl.Span>\n`;
     expect(countSubSlides(src)).toBe(3);
   });
 
-  it("combines Pause and SubSlide bounds", () => {
-    const src = `# A\n\n- one\n<Pause/>\n- two\n\n<SubSlide when="4">late</SubSlide>\n`;
+  it("advances pause firing past preceding when bounds", () => {
+    // when=2 reveal first, then Pause fires at 3, then when=4
+    const src =
+      `# A\n\n- adv\n<Sl.Span when="2">- fast</Sl.Span>\n` +
+      `<Sl.Pause/>\n- dis\n<Sl.Span when="4">- complicated</Sl.Span>\n`;
     expect(countSubSlides(src)).toBe(4);
+  });
+
+  it("accepts unquoted attribute values", () => {
+    const src = `# A\n\n<Sl.Span when=3->x</Sl.Span>\n`;
+    expect(countSubSlides(src)).toBe(3);
+  });
+});
+
+describe("transformForSubSlide", () => {
+  it("elides everything past an unfired pause", () => {
+    const src = `# A\n\n- one\n<Sl.Pause/>\n- two\n`;
+    const s1 = transformForSubSlide(src, 1);
+    expect(s1).toContain("- one");
+    expect(s1).not.toContain("- two");
+    expect(s1).not.toContain("<Sl.Pause");
+  });
+
+  it("shows everything when n exceeds the pause count", () => {
+    const src = `# A\n\n- one\n<Sl.Pause/>\n- two\n`;
+    const s2 = transformForSubSlide(src, 2);
+    expect(s2).toContain("- one");
+    expect(s2).toContain("- two");
+    expect(s2).not.toContain("<Sl.Pause");
+  });
+
+  it("strips Sl.Span tags but keeps inner content when when matches", () => {
+    const src = `- Advantages\n\n  <Sl.Span when="2">\n  - Fast\n  </Sl.Span>\n`;
+    const s = transformForSubSlide(src, 2);
+    expect(s).toContain("- Fast");
+    expect(s).not.toContain("<Sl.Span");
+    expect(s).not.toContain("</Sl.Span>");
+  });
+
+  it("removes a Sl.Span entirely when when does not match", () => {
+    const src = `- Advantages\n\n  <Sl.Span when="2">\n  - Fast\n  </Sl.Span>\n`;
+    const s = transformForSubSlide(src, 1);
+    expect(s).toContain("- Advantages");
+    expect(s).not.toContain("- Fast");
+    expect(s).not.toContain("<Sl.Span");
+  });
+
+  it("handles the spec example variant by variant", () => {
+    const src =
+      `## Slide 2\n\n  - Advantages\n\n` +
+      `      <Sl.Span when="2">\n      - Fast\n      </Sl.Span>\n\n` +
+      `  <Sl.Pause/>\n\n  - Disadvantages\n\n` +
+      `  <Sl.Span when="4">\n      - Complicated\n  </Sl.Span>\n`;
+
+    const v1 = transformForSubSlide(src, 1);
+    expect(v1).toContain("- Advantages");
+    expect(v1).not.toContain("- Fast");
+    expect(v1).not.toContain("- Disadvantages");
+    expect(v1).not.toContain("- Complicated");
+
+    const v2 = transformForSubSlide(src, 2);
+    expect(v2).toContain("- Advantages");
+    expect(v2).toContain("- Fast");
+    expect(v2).not.toContain("- Disadvantages");
+    expect(v2).not.toContain("- Complicated");
+
+    const v3 = transformForSubSlide(src, 3);
+    expect(v3).toContain("- Advantages");
+    expect(v3).not.toContain("- Fast");
+    expect(v3).toContain("- Disadvantages");
+    expect(v3).not.toContain("- Complicated");
+
+    const v4 = transformForSubSlide(src, 4);
+    expect(v4).toContain("- Advantages");
+    expect(v4).not.toContain("- Fast");
+    expect(v4).toContain("- Disadvantages");
+    expect(v4).toContain("- Complicated");
+  });
+
+  it("preserves indentation of bullets inside a matched span", () => {
+    const src = `- Disadvantages\n\n<Sl.Span when="4">\n    - Complicated\n</Sl.Span>\n`;
+    const s = transformForSubSlide(src, 4);
+    expect(s).toMatch(/^    - Complicated/m);
   });
 });
 
@@ -91,37 +171,5 @@ Here:
   it("leaves fenced code blocks alone", () => {
     const src = "```\nx = 1\n```\n";
     expect(normalizeIndentedCode(src)).toBe(src);
-  });
-
-  it("does not corrupt indented JSX inside list items", () => {
-    const src = `- Advantages\n\n  <SubSlide when="2">\n  - Fast\n  </SubSlide>\n`;
-    const out = normalizeIndentedCode(src);
-    expect(out).toBe(src);
-  });
-});
-
-describe("transformForSubSlide", () => {
-  it("hides content after the n-th Pause", () => {
-    const src = `# A\n\n- one\n<Pause/>\n- two\n`;
-    const s1 = transformForSubSlide(src, 1);
-    expect(s1).toContain("- one");
-    expect(s1).toContain('<div style={{visibility: "hidden"}}>');
-    expect(s1).toContain("- two");
-    expect(s1).not.toContain("<Pause/>");
-  });
-
-  it("shows everything when n exceeds the Pause count", () => {
-    const src = `# A\n\n- one\n<Pause/>\n- two\n`;
-    const s2 = transformForSubSlide(src, 2);
-    expect(s2).toContain("- one");
-    expect(s2).toContain("- two");
-    expect(s2).not.toContain("<Pause/>");
-    expect(s2).not.toContain("visibility");
-  });
-
-  it("leaves SubSlide tags in source for the component to handle", () => {
-    const src = `# A\n\n<SubSlide when="2">x</SubSlide>\n`;
-    const s = transformForSubSlide(src, 1);
-    expect(s).toContain('<SubSlide when="2">');
   });
 });
