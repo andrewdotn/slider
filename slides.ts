@@ -3,8 +3,13 @@ export interface Slide {
   content: string;
 }
 
-function slugify(title: string): string {
-  return title.toLowerCase().replace(/\s+/g, "-");
+export function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 export function parseTalk(markdown: string): Slide[] {
@@ -12,6 +17,14 @@ export function parseTalk(markdown: string): Slide[] {
   const slides: Slide[] = [];
   let currentContent: string[] = [];
   let currentSlug = "";
+  const slugCounts = new Map<string, number>();
+
+  function dedupeSlug(slug: string): string {
+    if (slug === "") return slug;
+    const count = slugCounts.get(slug) ?? 0;
+    slugCounts.set(slug, count + 1);
+    return count === 0 ? slug : `${slug}-${count + 1}`;
+  }
 
   for (const line of lines) {
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
@@ -24,7 +37,7 @@ export function parseTalk(markdown: string): Slide[] {
         currentSlug = "";
         currentContent = [line];
       } else {
-        currentSlug = slugify(title);
+        currentSlug = dedupeSlug(slugify(title));
         currentContent = [line];
       }
     } else {
