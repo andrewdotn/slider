@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
-import { parseTalk, type Slide } from "./slides.ts";
+import { parseTalk, slideHeading, type Slide } from "./slides.ts";
 import {
   Pause,
   SubSlide,
@@ -191,6 +191,46 @@ function SlideView({
     };
   }, [slide.content, clampedSub, parseError]);
 
+  const TableOfContents = useMemo(
+    () =>
+      ({ minDepth = 1, maxDepth = 3 }: { minDepth?: number; maxDepth?: number }) => {
+        type Node = { slide: Slide; title: string; children: Node[] };
+        const roots: Node[] = [];
+        const stack: { depth: number; siblings: Node[] }[] = [{ depth: minDepth - 1, siblings: roots }];
+        for (const slide of slides) {
+          const h = slideHeading(slide.content);
+          if (!h || h.depth < minDepth || h.depth > maxDepth) continue;
+          while (stack[stack.length - 1].depth >= h.depth) stack.pop();
+          const node: Node = { slide, title: h.title, children: [] };
+          stack[stack.length - 1].siblings.push(node);
+          stack.push({ depth: h.depth, siblings: node.children });
+        }
+        const renderList = (nodes: Node[]): React.ReactElement => (
+          <ul className="toc">
+            {nodes.map(({ slide, title, children }) => {
+              const href = hrefFor(talk, slide.slug, 1);
+              return (
+                <li key={slide.slug || title}>
+                  <a
+                    href={href}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigateTo(href);
+                    }}
+                  >
+                    {title}
+                  </a>
+                  {children.length > 0 && renderList(children)}
+                </li>
+              );
+            })}
+          </ul>
+        );
+        return renderList(roots);
+      },
+    [talk, slides],
+  );
+
   const prevSlide = idx > 0 ? slides[idx - 1] : null;
   const nextSlide = idx < slides.length - 1 ? slides[idx + 1] : null;
 
@@ -222,7 +262,7 @@ function SlideView({
             {error ? (
               <pre className="mdx-error">{error}</pre>
             ) : Content ? (
-              <Content components={{ Pause, SubSlide }} />
+              <Content components={{ Pause, SubSlide, TableOfContents }} />
             ) : null}
           </SubSlideContext.Provider>
         </article>

@@ -613,6 +613,15 @@ figcaption {
   text-align: left;
 }
 
+ul.toc a,
+ul.toc a:visited {
+  color: inherit;
+  text-decoration: none;
+}
+ul.toc a:hover {
+  text-decoration: underline;
+}
+
 .nav-arrow {
   position: fixed;
   bottom: 1rem;

@@ -3,6 +3,13 @@ export interface Slide {
   content: string;
 }
 
+export function slideHeading(content: string): { depth: number; title: string } | null {
+  const firstLine = content.split("\n", 1)[0] ?? "";
+  const m = firstLine.match(/^(#{1,6})\s+(.+)$/);
+  if (!m) return null;
+  return { depth: m[1].length, title: m[2].trim() };
+}
+
 export function slugify(title: string): string {
   return title
     .toLowerCase()

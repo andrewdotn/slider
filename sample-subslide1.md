@@ -1,10 +1,14 @@
-# Slide 1
+# Talk
+
+<TableOfContents/>
+
+## Slide 1
 
   - One thing
   <Pause/>
   - Another thing
 
-# Slide 2
+## Slide 2
 
 - Advantages
 
@@ -16,6 +20,6 @@
 - Disadvantages
 </SubSlide>
 
-<SubSlide when=4>
+<SubSlide when="4">
     - Complicated
 </SubSlide>
