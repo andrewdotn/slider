@@ -6,21 +6,21 @@ Author
 
 Why?
 
-- Reason 1
-  <Pause/>
-- Reason 2
+  - Reason 1
+<Pause/>
+  - Reason 2
 
 ## Tradeoffs
 
-- Advantages
+  - Advantages
 
-  <SubSlide when="2-">
-  - Fast
-  </SubSlide>
+      <Sl.SubSlide when="2-">
+      - Fast
+      </SubSlide>
 
-<SubSlide when="3-">
-- Disadvantages
-</SubSlide>
+   <Pause>
+   - Disadvantages
+   </Pause>
 
 <SubSlide when="4">
   - Complicated
@@ -28,7 +28,7 @@ Why?
 
 ## Getting started
 
-Here is _the code_
+Here is *the code*
 
     int main() {
       printf("hello world\n");
