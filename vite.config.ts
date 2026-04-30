@@ -14,6 +14,7 @@ export default defineConfig({
           include: ["**/*.test.ts", "app.test.tsx"],
           exclude: [
             "**/node_modules/**",
+            "**/.claude/**",
             "keyboard-nav.test.tsx",
             "mdx-error.test.tsx",
           ],
@@ -24,7 +25,7 @@ export default defineConfig({
         test: {
           name: "browser",
           include: ["keyboard-nav.test.tsx", "mdx-error.test.tsx"],
-          exclude: ["**/node_modules/**"],
+          exclude: ["**/node_modules/**", "**/.claude/**"],
           browser: {
             enabled: true,
             provider: playwright(),

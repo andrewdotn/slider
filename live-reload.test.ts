@@ -37,11 +37,11 @@ describe("live reload", () => {
       try {
         const page = await browser.newPage();
         await page.goto(`${url}/talks/live-test/`);
-        await waitForText(page, ".slide", "Original content");
+        await waitForText(page, "article.current","Original content");
 
         await fs.writeFile(talkFile, "# Live Test\n\nUpdated content");
 
-        await waitForText(page, ".slide", "Updated content");
+        await waitForText(page, "article.current","Updated content");
       } finally {
         await browser.close();
       }
@@ -64,14 +64,14 @@ describe("live reload", () => {
       try {
         const page = await browser.newPage();
         await page.goto(`${url}/talks/vim-test/`);
-        await waitForText(page, ".slide", "Before edit");
+        await waitForText(page, "article.current","Before edit");
 
         // Simulate vim's atomic write: write to temp file, then rename into place
         const tempFile = path.join(tmpdir, "vim-test.md.tmp");
         await fs.writeFile(tempFile, "# Vim Test\n\nAfter edit");
         await fs.rename(tempFile, talkFile);
 
-        await waitForText(page, ".slide", "After edit");
+        await waitForText(page, "article.current","After edit");
       } finally {
         await browser.close();
       }
