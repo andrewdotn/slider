@@ -26,6 +26,17 @@ function useSlides(): {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  const fetchTalk = async (talk: string, slideSlug: string) => {
+    const res = await fetch(`/talks-static/${talk}.md`);
+    if (!res.ok) throw new Error("Not found");
+    const markdown = await res.text();
+    const slides = parseTalk(markdown);
+    const idx = slides.findIndex((s) => s.slug === slideSlug);
+    if (idx !== -1) {
+      setData({ talk, slides, idx });
+    }
+  };
+
   useEffect(() => {
     const parts = path.split("/").filter(Boolean);
     if (parts.length === 0) return;
@@ -41,19 +52,20 @@ function useSlides(): {
       return;
     }
 
-    fetch(`/talks-static/${talk}.md`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Not found");
-        return res.text();
-      })
-      .then((markdown) => {
-        const slides = parseTalk(markdown);
-        const idx = slides.findIndex((s) => s.slug === slideSlug);
-        if (idx !== -1) {
-          setData({ talk, slides, idx });
-        }
-      });
+    fetchTalk(talk, slideSlug);
   }, [path]);
+
+  useEffect(() => {
+    const es = new EventSource("/events");
+    es.onmessage = (event) => {
+      const { talk } = JSON.parse(event.data);
+      if (data && data.talk === talk) {
+        const currentSlug = data.slides[data.idx]?.slug ?? "";
+        fetchTalk(talk, currentSlug);
+      }
+    };
+    return () => es.close();
+  }, [data?.talk, data?.idx]);
 
   return data;
 }

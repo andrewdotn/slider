@@ -11,15 +11,21 @@ import { promisify } from "node:util";
 import * as path from "node:path";
 import { parseTalk } from "./slides.ts";
 import morgan from "morgan";
+import { watch, type FSWatcher } from "node:fs";
 
 export class Server {
   app: Express;
   vite?: ViteDevServer;
   listeningServer?: http.Server;
   baseDir?: string;
+  private watcher?: FSWatcher;
+  private sseClients = new Set<express.Response>();
 
-  constructor({ baseDir }: { baseDir?: string } = {}) {
+  private isTest: boolean;
+
+  constructor({ baseDir, isTest }: { baseDir?: string; isTest?: boolean } = {}) {
     this.baseDir = baseDir;
+    this.isTest = isTest ?? process.env.NODE_ENV === "test";
     const app = express();
 
     app.use(morgan('dev'));
@@ -49,19 +55,31 @@ export class Server {
 
     app.use('/talks-static/', express.static(this.baseDir ?? "."));
 
+    app.get("/events", (req, res) => {
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      });
+      res.write(":\n\n");
+      this.sseClients.add(res);
+      req.on("close", () => {
+        this.sseClients.delete(res);
+      });
+    });
+
     this.app = app;
   }
 
   private async _installViteMiddleware() {
-    const isTest = process.env.NODE_ENV === "test";
     const vite = await createViteServer({
       base: '/vite',
       server: {
         middlewareMode: true,
-        hmr: isTest ? false : undefined,
-        ws: isTest ? false : undefined,
+        hmr: this.isTest ? false : undefined,
+        ws: this.isTest ? false : undefined,
       },
-      optimizeDeps: { noDiscovery: isTest },
+      optimizeDeps: { noDiscovery: this.isTest },
       appType: "custom",
     });
     this.vite = vite;
@@ -119,12 +137,40 @@ export class Server {
     res.status(200).set({ "Content-Type": "text/html" }).end(html);
   };
 
+  private _startWatching() {
+    const dir = this.baseDir ?? ".";
+    // Debounce per-file to coalesce rapid events (e.g. vim atomic writes
+    // which trigger multiple rename/change events, or macOS FSEvents
+    // which may fire duplicate events for a single rename-into-place).
+    const pending = new Map<string, ReturnType<typeof setTimeout>>();
+    this.watcher = watch(dir, (eventType, filename) => {
+      if (!filename || !filename.endsWith(".md")) return;
+      const talk = filename.replace(/\.md$/, "");
+      if (pending.has(talk)) clearTimeout(pending.get(talk));
+      pending.set(
+        talk,
+        setTimeout(() => {
+          pending.delete(talk);
+          this._notifyClients(talk);
+        }, 50),
+      );
+    });
+  }
+
+  private _notifyClients(talk: string) {
+    const data = `data: ${JSON.stringify({ talk })}\n\n`;
+    for (const client of this.sseClients) {
+      client.write(data);
+    }
+  }
+
   async serve({
     port,
   }: {
     port?: number;
   } = {}): Promise<http.Server> {
     await this._installViteMiddleware();
+    this._startWatching();
 
     const server = http.createServer(this.app);
 
@@ -146,9 +192,19 @@ export class Server {
   async close(): Promise<void> {
     const listeningServer = this.listeningServer;
     const vite = this.vite;
+    const watcher = this.watcher;
     this.listeningServer = undefined;
     this.vite = undefined;
+    this.watcher = undefined;
 
+    for (const client of this.sseClients) {
+      client.end();
+    }
+    this.sseClients.clear();
+
+    if (watcher) {
+      watcher.close();
+    }
     if (listeningServer) {
       const address = listeningServer.address();
       await promisify(listeningServer.close.bind(listeningServer))();

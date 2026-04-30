@@ -9,12 +9,14 @@ import * as os from "node:os";
 
 async function createTestServer({
   baseDir,
+  isTest,
   onCleanup,
 }: {
   baseDir?: string;
+  isTest?: boolean;
   onCleanup: (cb: () => void) => void;
 }) {
-  const server = new Server({ baseDir });
+  const server = new Server({ baseDir, isTest });
   const listeningServer = await server.serve();
 
   onCleanup(async () => {
@@ -42,6 +44,14 @@ export const test = baseTest
   })
   .extend("tmpdirServer", async ({ tmpdir }, { onCleanup }) => {
     const server = await createTestServer({ baseDir: tmpdir, onCleanup });
+    return { server, tmpdir };
+  })
+  .extend("tmpdirBrowserServer", async ({ tmpdir }, { onCleanup }) => {
+    const server = await createTestServer({
+      baseDir: tmpdir,
+      isTest: false,
+      onCleanup,
+    });
     return { server, tmpdir };
   });
 
