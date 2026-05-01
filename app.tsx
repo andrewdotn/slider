@@ -8,6 +8,7 @@ import {
   transformForSubSlide,
 } from "./subslides.tsx";
 import { parseCodeHighlights } from "./highlight.ts";
+import { FileExcerpt } from "./FileExcerpt.tsx";
 
 type MDXContent = (props: Record<string, unknown>) => React.JSX.Element;
 
@@ -315,7 +316,24 @@ function SlideView({
           {error ? (
             <pre className="mdx-error">{error}</pre>
           ) : Content ? (
-            <Content components={{ TableOfContents, Font, pre: Pre }} />
+            <Content
+              components={{
+                TableOfContents,
+                Font,
+                pre: Pre,
+                FileExcerpt: (props: {
+                  src: string;
+                  lineHighlights?: RegExp[];
+                  runMethod?: "Makefile";
+                }) => (
+                  <FileExcerpt
+                    {...props}
+                    talk={talk}
+                    slideSlug={slide.slug}
+                  />
+                ),
+              }}
+            />
           ) : null}
         </article>
       </div>

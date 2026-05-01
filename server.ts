@@ -12,6 +12,7 @@ import * as path from "node:path";
 import { parseTalk } from "./slides.ts";
 import morgan from "morgan";
 import { watch, type FSWatcher } from "node:fs";
+import { EvalManager } from "./eval.ts";
 
 export class Server {
   app: Express;
@@ -20,6 +21,7 @@ export class Server {
   baseDir?: string;
   private watcher?: FSWatcher;
   private sseClients = new Set<express.Response>();
+  private evalManager: EvalManager;
 
   private isTest: boolean;
 
@@ -29,9 +31,11 @@ export class Server {
   }: { baseDir?: string; isTest?: boolean } = {}) {
     this.baseDir = baseDir;
     this.isTest = isTest ?? process.env.NODE_ENV === "test";
+    this.evalManager = new EvalManager(baseDir ?? ".");
     const app = express();
 
     app.use(morgan("dev"));
+    app.use(express.json({ limit: "5mb" }));
 
     app.get("/hello", (req, res) => {
       res.send("Hello World!");
@@ -57,6 +61,75 @@ export class Server {
     });
 
     app.use("/talks-static/", express.static(this.baseDir ?? "."));
+
+    app.post(
+      "/eval/:talk/:slide/:codeblockId/run",
+      async (req, res) => {
+        try {
+          const { talk, slide, codeblockId } = req.params;
+          const { src, files } = req.body ?? {};
+          if (typeof src !== "string") {
+            return res.status(400).json({ error: "src required" });
+          }
+          if (!this.evalManager.resolveSrc(talk, src)) {
+            return res.status(400).json({ error: "invalid src" });
+          }
+          const result = await this.evalManager.run({
+            talk,
+            slide,
+            codeblockId,
+            src,
+            files: files ?? {},
+          });
+          res.json(result);
+        } catch (err) {
+          res.status(400).json({ error: (err as Error).message });
+        }
+      },
+    );
+
+    app.get(
+      "/eval/:talk/:slide/:codeblockId/output/:runId",
+      (req, res) => {
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        });
+        res.write(":\n\n");
+        const cancel = this.evalManager.subscribe(req.params.runId, {
+          onChunk: (c) => {
+            res.write(`data: ${JSON.stringify(c)}\n\n`);
+          },
+          onEnd: (e) => {
+            res.write(`event: end\ndata: ${JSON.stringify(e)}\n\n`);
+            res.end();
+          },
+        });
+        if (!cancel) {
+          res.write(`event: end\ndata: ${JSON.stringify({ exitCode: null, signal: null, error: "unknown runId" })}\n\n`);
+          return res.end();
+        }
+        req.on("close", () => cancel());
+      },
+    );
+
+    app.get(
+      "/eval/:talk/:slide/:codeblockId/output/:runId/clean",
+      (req, res) => {
+        const out = this.evalManager.getCleanOutput(req.params.runId);
+        if (out === null) return res.status(404).send("not found");
+        res.set("Content-Type", "text/plain; charset=utf-8").send(out);
+      },
+    );
+
+    app.post(
+      "/eval/:talk/:slide/:codeblockId/kill/:runId",
+      (req, res) => {
+        const ok = this.evalManager.kill(req.params.runId);
+        res.json({ killed: ok });
+      },
+    );
 
     app.get("/events", (req, res) => {
       res.writeHead(200, {
@@ -219,6 +292,7 @@ export class Server {
     if (vite) {
       await vite.close();
     }
+    await this.evalManager.close();
   }
 }
 

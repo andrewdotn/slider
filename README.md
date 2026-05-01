@@ -32,6 +32,17 @@ inspired by LaTeX's beamer.
     that should appear on the slide with a literal `//HL` or `#HL`. More `HL`s
     in the input toggle highlighting in the output as they add more `HL`s.
 
+  - `<FileExcerpt src="hello/hello.c"/>` displays a file as a code block.
+
+      - `lineHighlights={[/foo/]} />` will highlight
+
+      - `runMethod="Makefile"` makes the code block editable and runnable.
+        Files in the same directory as `src` will be copied to a temporary
+        directory, where `make clean` and then `make` will run.
+
+        Recent temporary files are stored in `temp-eval` until the server
+        exits.
+
 ## Shortcut keys
 
   - Right/left arrow keys to advance by sub-slide

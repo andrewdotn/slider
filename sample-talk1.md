@@ -42,3 +42,12 @@ Here is *the code*
       printf("hello world\n");  //HL
       return 0;
     }
+
+## Evaluating
+
+<FileExcerpt
+    src="eval-hello/hello.c"
+    lineHighlights={[/Hello/]}
+    runMethod="Makefile"
+/>
+

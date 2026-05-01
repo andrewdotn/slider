@@ -17,6 +17,7 @@ export default defineConfig({
             "**/.claude/**",
             "keyboard-nav.test.tsx",
             "mdx-error.test.tsx",
+            "file-excerpt.test.tsx",
           ],
         },
       },
@@ -24,7 +25,11 @@ export default defineConfig({
         extends: true,
         test: {
           name: "browser",
-          include: ["keyboard-nav.test.tsx", "mdx-error.test.tsx"],
+          include: [
+            "keyboard-nav.test.tsx",
+            "mdx-error.test.tsx",
+            "file-excerpt.test.tsx",
+          ],
           exclude: ["**/node_modules/**", "**/.claude/**"],
           browser: {
             enabled: true,

@@ -47,3 +47,83 @@ pre code > span {
 pre code > span.hl {
   background: #ffff00;
 }
+
+.file-excerpt {
+  position: relative;
+  font-family: monospace;
+}
+.file-excerpt-editor .cm-editor {
+  background: transparent;
+}
+.file-excerpt-editor .cm-line.file-excerpt-hl {
+  background: #ffff00;
+}
+.file-excerpt-run {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 12px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.file-excerpt-popup {
+  position: absolute;
+  top: 28px;
+  right: 4px;
+  width: 60%;
+  max-height: 70%;
+  background: #fff;
+  border: 1px solid #888;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+.file-excerpt-popup-header {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: #eee;
+  font-size: 12px;
+}
+.file-excerpt-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  background: #fff;
+  border: 1px solid #888;
+  z-index: 11;
+}
+.file-excerpt-menu li {
+  padding: 0;
+}
+.file-excerpt-menu button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.file-excerpt-menu button:hover:not(:disabled) {
+  background: #eef;
+}
+.file-excerpt-output {
+  flex: 1;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  font-size: 12px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  background: #111;
+  color: #eee;
+  resize: none;
+  border: none;
+}
