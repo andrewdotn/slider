@@ -168,6 +168,7 @@ export function FileExcerpt({
     setEnd(null);
     setRunning(true);
     setPopupOpen(true);
+    setMenuOpen(false);
     setCleanText(null);
     if (esRef.current) {
       esRef.current.close();
@@ -235,6 +236,7 @@ export function FileExcerpt({
   };
 
   const killRun = async () => {
+    setMenuOpen(false);
     if (!runId) return;
     await fetch(
       `/eval/${talk}/${slideSeg}/${codeblockId}/kill/${runId}`,
@@ -243,6 +245,7 @@ export function FileExcerpt({
   };
 
   const viewClean = async () => {
+    setMenuOpen(false);
     if (!runId) return;
     const r = await fetch(
       `/eval/${talk}/${slideSeg}/${codeblockId}/output/${runId}/clean`,
@@ -251,6 +254,7 @@ export function FileExcerpt({
   };
 
   const copyPath = async () => {
+    setMenuOpen(false);
     if (tempDir) {
       try {
         await navigator.clipboard.writeText(tempDir);
