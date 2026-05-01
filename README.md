@@ -57,6 +57,9 @@ inspired by LaTeX’s beamer.
   - Up/down arrow keys advance by full slides, skipping over progressive-reveal
     from subslides
 
+  - `d` toggles debug mode, with overlays such as what syntax code blocks
+    were auto-detected as
+
 ## Running
 
     node --experimental-strip-types server.ts \

@@ -7,7 +7,7 @@ import {
   normalizeIndentedCode,
   transformForSubSlide,
 } from "./subslides.tsx";
-import { CodeBlock } from "./CodeBlock.tsx";
+import { CodeBlock, toggleCodeBlockDebug } from "./CodeBlock.tsx";
 import { FileExcerpt } from "./FileExcerpt.tsx";
 
 type MDXContent = (props: Record<string, unknown>) => React.JSX.Element;
@@ -135,7 +135,8 @@ function useSlides(): {
     if (!res.ok) throw new Error("Not found");
     const markdown = await res.text();
     const slides = parseTalk(markdown);
-    const idx = slides.findIndex((s) => s.slug === slideSlug);
+    let idx = slides.findIndex((s) => s.slug === slideSlug);
+    if (idx === -1 && slideSlug === "" && slides.length > 0) idx = 0;
     if (idx !== -1) {
       setData({ talk, slides, idx });
     }
@@ -149,7 +150,8 @@ function useSlides(): {
     const slideSlug = parts[2] ?? "";
 
     if (data && data.talk === talk) {
-      const idx = data.slides.findIndex((s) => s.slug === slideSlug);
+      let idx = data.slides.findIndex((s) => s.slug === slideSlug);
+      if (idx === -1 && slideSlug === "" && data.slides.length > 0) idx = 0;
       if (idx !== -1) {
         setData({ ...data, idx });
       }
@@ -373,6 +375,13 @@ export function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as Element | null;
       if (target && target.closest(".cm-editor")) return;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          (target as HTMLElement).isContentEditable)
+      )
+        return;
       let href: string | null = null;
       if (e.key === "ArrowRight") {
         if (clampedSub < subCount) {
@@ -401,6 +410,8 @@ export function App() {
         if (idx > 0) {
           href = hrefFor(talk, slides[idx - 1].slug, 1);
         }
+      } else if (e.key === "d" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        toggleCodeBlockDebug();
       }
       if (href) navigateTo(href);
     };
