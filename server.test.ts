@@ -106,6 +106,30 @@ describe("slider", () => {
     expect(body).to.contain('<div id="root"></div>');
   });
 
+  test("talk starting with h2 serves at root path", async ({ tmpdirServer }) => {
+    const {
+      server: { url },
+      tmpdir,
+    } = await tmpdirServer;
+    await fs.writeFile(path.join(tmpdir, "h2-first.md"), "## hello\n\nbody\n");
+    const res = await fetch(`${url}/talks/h2-first/`);
+    expect(res.status).to.equal(200);
+    const body = await res.text();
+    expect(body).to.contain('<div id="root"></div>');
+  });
+
+  test("talk with no headings serves at root path", async ({ tmpdirServer }) => {
+    const {
+      server: { url },
+      tmpdir,
+    } = await tmpdirServer;
+    await fs.writeFile(path.join(tmpdir, "no-heading.md"), "just text\n");
+    const res = await fetch(`${url}/talks/no-heading/`);
+    expect(res.status).to.equal(200);
+    const body = await res.text();
+    expect(body).to.contain('<div id="root"></div>');
+  });
+
   test("nonexistent talk returns 404", async ({ server }) => {
     const res = await fetch(`${server.url}/nonexistent/`);
     expect(res.status).to.equal(404);

@@ -197,6 +197,7 @@ export class Server {
     }
 
     const slides = parseTalk(markdown);
+    if (slideSlug === "") return slides.length > 0;
     return slides.some((s) => s.slug === slideSlug);
   }
 
