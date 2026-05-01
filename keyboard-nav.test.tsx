@@ -84,4 +84,22 @@ describe("Keyboard Navigation", () => {
       "/talks/sample-talk1/",
     );
   });
+
+  it("toggles laser mode on 'l'", async () => {
+    window.history.pushState({}, "", "/talks/sample-talk1/");
+    const screen = await render(<App />);
+
+    await expect.element(screen.getByText("Slide 1")).toBeVisible();
+
+    expect(document.querySelector('[data-testid="laser-overlay"]')).toBeNull();
+
+    await userEvent.keyboard("l");
+
+    await expect
+      .element(screen.getByTestId("laser-overlay"))
+      .toBeInTheDocument();
+
+    await userEvent.keyboard("l");
+    expect(document.querySelector('[data-testid="laser-overlay"]')).toBeNull();
+  });
 });

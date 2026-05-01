@@ -9,6 +9,7 @@ import {
 } from "./subslides.tsx";
 import { CodeBlock, toggleCodeBlockDebug } from "./CodeBlock.tsx";
 import { FileExcerpt } from "./FileExcerpt.tsx";
+import { Laser } from "./Laser.tsx";
 
 type MDXContent = (props: Record<string, unknown>) => React.JSX.Element;
 
@@ -360,6 +361,7 @@ function SlideView({
 
 export function App() {
   const data = useSlides();
+  const [laser, setLaser] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -412,6 +414,8 @@ export function App() {
         }
       } else if (e.key === "d" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         toggleCodeBlockDebug();
+      } else if (e.key === "l" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        setLaser((v) => !v);
       }
       if (href) navigateTo(href);
     };
@@ -424,11 +428,14 @@ export function App() {
   }
 
   return (
-    <SlideView
-      talk={data.talk}
-      slides={data.slides}
-      idx={data.idx}
-      subIdx={data.subIdx}
-    />
+    <>
+      <SlideView
+        talk={data.talk}
+        slides={data.slides}
+        idx={data.idx}
+        subIdx={data.subIdx}
+      />
+      <Laser active={laser} />
+    </>
   );
 }
