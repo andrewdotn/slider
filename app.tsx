@@ -7,7 +7,7 @@ import {
   normalizeIndentedCode,
   transformForSubSlide,
 } from "./subslides.tsx";
-import { parseCodeHighlights } from "./highlight.ts";
+import { CodeBlock } from "./CodeBlock.tsx";
 import { FileExcerpt } from "./FileExcerpt.tsx";
 
 type MDXContent = (props: Record<string, unknown>) => React.JSX.Element;
@@ -34,16 +34,11 @@ function Pre(props: React.HTMLAttributes<HTMLPreElement>) {
     className?: string;
   }>;
   const raw = extractCodeText(child.props.children).replace(/\n$/, "");
-  const lines = parseCodeHighlights(raw);
+  const langMatch = child.props.className?.match(/language-(\S+)/);
+  const lang = langMatch?.[1];
   return (
     <pre>
-      <code className={child.props.className}>
-        {lines.map((line, i) => (
-          <span key={i} className={line.highlight ? "hl" : undefined}>
-            {line.text || " "}
-          </span>
-        ))}
-      </code>
+      <CodeBlock code={raw} lang={lang} />
     </pre>
   );
 }

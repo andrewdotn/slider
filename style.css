@@ -48,6 +48,32 @@ pre code > span.hl {
   background: #ffff00;
 }
 
+/* CodeMirror-default-like theme for highlight.js tokens, so read-only
+ * code blocks visually match the editable CodeMirror blocks. */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-quote { color: #708; }
+.hljs-string,
+.hljs-regexp { color: #a11; }
+.hljs-comment,
+.hljs-doctag { color: #940; font-style: italic; }
+.hljs-number,
+.hljs-literal { color: #164; }
+.hljs-type,
+.hljs-built_in,
+.hljs-class .hljs-title,
+.hljs-title.class_ { color: #085; }
+.hljs-title,
+.hljs-title.function_ { color: #00f; }
+.hljs-variable,
+.hljs-template-variable,
+.hljs-symbol { color: #000; }
+.hljs-attr,
+.hljs-attribute { color: #00c; }
+.hljs-tag,
+.hljs-name { color: #170; }
+.hljs-meta { color: #555; }
+
 .file-excerpt {
   position: relative;
   /* Match the styling of plain <pre> code blocks (see present.css). */

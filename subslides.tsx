@@ -1,6 +1,5 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
-import { visit } from "unist-util-visit";
 import type { Root } from "mdast";
 
 export interface WhenSpec {
@@ -47,20 +46,47 @@ export function parseWhen(spec: string): WhenSpec {
   };
 }
 
+const SYNTAX_COMMENT_RE = /^<!--\s*syntax:\s*(\S+)\s*-->\s*$/;
+
 export function normalizeIndentedCode(src: string): string {
   const tree = unified().use(remarkParse).parse(src) as Root;
   const replacements: Array<{ start: number; end: number; text: string }> = [];
-  visit(tree, "code", (node: any) => {
-    const start = node.position?.start?.offset;
-    const end = node.position?.end?.offset;
-    if (start === undefined || end === undefined) return;
-    const original = src.slice(start, end);
-    if (original.startsWith("```") || original.startsWith("~~~")) return;
-    const lang = node.lang ?? "";
-    const value: string = node.value ?? "";
-    const fenced = "```" + lang + "\n" + value + "\n```";
-    replacements.push({ start, end, text: fenced });
-  });
+
+  function processChildren(parent: any) {
+    const children = parent.children;
+    if (!children) return;
+    for (let i = 0; i < children.length; i++) {
+      const node = children[i];
+      if (node.type === "code") {
+        const start = node.position?.start?.offset;
+        const end = node.position?.end?.offset;
+        if (start !== undefined && end !== undefined) {
+          const original = src.slice(start, end);
+          if (!original.startsWith("```") && !original.startsWith("~~~")) {
+            let lang: string = node.lang ?? "";
+            const prev = children[i - 1];
+            if (prev && prev.type === "html") {
+              const m = (prev.value ?? "").match(SYNTAX_COMMENT_RE);
+              if (m) {
+                lang = m[1];
+                const ps = prev.position?.start?.offset;
+                const pe = prev.position?.end?.offset;
+                if (ps !== undefined && pe !== undefined) {
+                  replacements.push({ start: ps, end: pe, text: "" });
+                }
+              }
+            }
+            const value: string = node.value ?? "";
+            const fenced = "```" + lang + "\n" + value + "\n```";
+            replacements.push({ start, end, text: fenced });
+          }
+        }
+      }
+      processChildren(node);
+    }
+  }
+  processChildren(tree);
+
   replacements.sort((a, b) => b.start - a.start);
   let out = src;
   for (const r of replacements) {
