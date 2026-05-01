@@ -416,6 +416,12 @@ export function App() {
         toggleCodeBlockDebug();
       } else if (e.key === "l" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         setLaser((v) => !v);
+      } else if (e.key === "f" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          document.documentElement.requestFullscreen();
+        }
       }
       if (href) navigateTo(href);
     };

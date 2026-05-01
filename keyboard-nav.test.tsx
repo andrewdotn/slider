@@ -102,4 +102,40 @@ describe("Keyboard Navigation", () => {
     await userEvent.keyboard("l");
     expect(document.querySelector('[data-testid="laser-overlay"]')).toBeNull();
   });
+
+  it("toggles fullscreen on 'f'", async () => {
+    window.history.pushState({}, "", "/talks/sample-talk1/");
+    const screen = await render(<App />);
+
+    await expect.element(screen.getByText("Slide 1")).toBeVisible();
+
+    const requestFullscreen = vi
+      .fn()
+      .mockImplementation(function (this: Element) {
+        Object.defineProperty(document, "fullscreenElement", {
+          value: this,
+          configurable: true,
+        });
+        return Promise.resolve();
+      });
+    const exitFullscreen = vi.fn().mockImplementation(() => {
+      Object.defineProperty(document, "fullscreenElement", {
+        value: null,
+        configurable: true,
+      });
+      return Promise.resolve();
+    });
+    document.documentElement.requestFullscreen = requestFullscreen;
+    document.exitFullscreen = exitFullscreen;
+    Object.defineProperty(document, "fullscreenElement", {
+      value: null,
+      configurable: true,
+    });
+
+    await userEvent.keyboard("f");
+    expect(requestFullscreen).toHaveBeenCalled();
+
+    await userEvent.keyboard("f");
+    expect(exitFullscreen).toHaveBeenCalled();
+  });
 });

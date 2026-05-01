@@ -61,6 +61,8 @@ inspired by LaTeX’s beamer.
 
   - `l` toggles laser pointer mode
 
+  - `f` toggles full screen
+
   - `d` toggles debug mode, with overlays such as what syntax code blocks
     were auto-detected as
 
