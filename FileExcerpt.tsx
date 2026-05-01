@@ -136,7 +136,10 @@ export function FileExcerpt({
     if (lang) exts.push(lang);
 
     const view = new EditorView({
-      state: EditorState.create({ doc: original, extensions: exts }),
+      state: EditorState.create({
+        doc: original.replace(/\n$/, ""),
+        extensions: exts,
+      }),
       parent: editorHost.current,
     });
     viewRef.current = view;
@@ -157,9 +160,12 @@ export function FileExcerpt({
       esRef.current = null;
     }
     const fileName = src.split("/").pop()!;
+    const text = editedRef.current.endsWith("\n")
+      ? editedRef.current
+      : editedRef.current + "\n";
     const body = {
       src,
-      files: { [fileName]: editedRef.current },
+      files: { [fileName]: text },
     };
     let r: Response;
     try {
