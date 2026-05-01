@@ -1,7 +1,24 @@
 import { describe, expect } from "vitest";
-import { test } from "./server.test.ts";
+import { test as baseTest } from "./server.test.ts";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+
+const test = baseTest.extend<{ minusculePath: void }>({
+  minusculePath: async ({ tmpdir }, use) => {
+    // Build a PATH that has `make` but not `stdbuf`, to simulate a system
+    // missing GNU coreutils' stdbuf.
+    const fakeBin = await fs.mkdtemp(path.join(tmpdir, "fake-bin-"));
+    await fs.symlink("/usr/bin/make", path.join(fakeBin, "make"));
+    await fs.symlink("/bin/sh", path.join(fakeBin, "sh"));
+    const origPath = process.env.PATH;
+    process.env.PATH = fakeBin;
+    try {
+      await use();
+    } finally {
+      process.env.PATH = origPath;
+    }
+  },
+});
 
 async function setupHelloTalk(tmpdir: string) {
   const helloDir = path.join(tmpdir, "hello");
@@ -83,6 +100,174 @@ describe("eval", () => {
     // temp dir should still exist with copied files
     const files = await fs.readdir(tempDir);
     expect(files.sort()).to.deep.equal(["Makefile", "hello.c"]);
+  });
+
+  test("streams chunks incrementally with timestamps and durationMs", async ({
+    tmpdirServer,
+  }) => {
+    const { server, tmpdir } = await tmpdirServer;
+    const dir = path.join(tmpdir, "incr");
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(tmpdir, "demo.md"), "# Demo\n");
+    await fs.writeFile(path.join(dir, "src.txt"), "x");
+    await fs.writeFile(
+      path.join(dir, "Makefile"),
+      "all:\n\t@echo 1; sleep 0.05; echo 2; sleep 0.05; echo 3\nclean:\n\t@true\n",
+    );
+
+    const runRes = await fetch(`${server.url}/eval/demo/intro/cb1/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ src: "incr/src.txt" }),
+    });
+    const { runId } = await runRes.json();
+
+    // Read the SSE stream and record receive timestamps per chunk.
+    const res = await fetch(
+      `${server.url}/eval/demo/intro/cb1/output/${runId}`,
+    );
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    const arrivals: { text: string; t: number; receivedAt: number }[] = [];
+    let end: any = null;
+    outer: while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const events = buf.split("\n\n");
+      buf = events.pop() ?? "";
+      for (const evt of events) {
+        let event = "message";
+        let data = "";
+        for (const line of evt.split("\n")) {
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          else if (line.startsWith("data:")) data += line.slice(5).trim();
+        }
+        if (!data) continue;
+        if (event === "end") {
+          end = JSON.parse(data);
+          break outer;
+        }
+        const c = JSON.parse(data);
+        arrivals.push({ text: c.text, t: c.t, receivedAt: Date.now() });
+      }
+    }
+
+    // At least two distinct chunks (i.e. not all delivered in one batch).
+    expect(arrivals.length).to.be.greaterThan(1);
+    // Chunk timestamps span the run.
+    const tSpan = arrivals[arrivals.length - 1].t - arrivals[0].t;
+    expect(tSpan).to.be.greaterThan(0);
+    // Chunks were received progressively, not all at once at the end.
+    const recvSpan =
+      arrivals[arrivals.length - 1].receivedAt - arrivals[0].receivedAt;
+    expect(recvSpan).to.be.greaterThan(0);
+    expect(end.durationMs).to.be.a("number");
+    expect(end.durationMs).to.be.greaterThanOrEqual(tSpan);
+    expect(end.exitCode).to.equal(0);
+  });
+
+  test("C program printf output is not block-buffered", async ({
+    tmpdirServer,
+  }) => {
+    const { server, tmpdir } = await tmpdirServer;
+    const dir = path.join(tmpdir, "cprog");
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(tmpdir, "demo.md"), "# Demo\n");
+    await fs.writeFile(
+      path.join(dir, "drip.c"),
+      [
+        "#include <stdio.h>",
+        "#include <unistd.h>",
+        "int main(void){",
+        '  printf("a\\n"); usleep(50000);',
+        '  printf("b\\n"); usleep(50000);',
+        '  printf("c\\n");',
+        "  return 0;",
+        "}",
+      ].join("\n") + "\n",
+    );
+    await fs.writeFile(
+      path.join(dir, "Makefile"),
+      "all: drip\n\t@./drip\ndrip: drip.c\n\t@cc -o drip drip.c\nclean:\n\t@rm -f drip\n",
+    );
+
+    const runRes = await fetch(`${server.url}/eval/demo/intro/cb1/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ src: "cprog/drip.c" }),
+    });
+    const { runId } = await runRes.json();
+
+    // Same SSE reader as the incremental-streaming test: capture per-chunk
+    // receive timestamps so we can confirm output drips out, not arrives in
+    // one batch when the C program exits.
+    const res = await fetch(
+      `${server.url}/eval/demo/intro/cb1/output/${runId}`,
+    );
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    const arrivals: { text: string; receivedAt: number }[] = [];
+    let end: any = null;
+    outer: while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const events = buf.split("\n\n");
+      buf = events.pop() ?? "";
+      for (const evt of events) {
+        let event = "message";
+        let data = "";
+        for (const line of evt.split("\n")) {
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          else if (line.startsWith("data:")) data += line.slice(5).trim();
+        }
+        if (!data) continue;
+        if (event === "end") {
+          end = JSON.parse(data);
+          break outer;
+        }
+        const c = JSON.parse(data);
+        arrivals.push({ text: c.text, receivedAt: Date.now() });
+      }
+    }
+
+    expect(end.exitCode).to.equal(0);
+    const all = arrivals.map((a) => a.text).join("");
+    expect(all).to.contain("a");
+    expect(all).to.contain("b");
+    expect(all).to.contain("c");
+    // Find when "a" arrived and when "c" arrived; with the buffering fix
+    // they should be separated in time, not delivered together.
+    const tA = arrivals.find((a) => a.text.includes("a"))!.receivedAt;
+    const tC = arrivals.find((a) => a.text.includes("c"))!.receivedAt;
+    expect(tC - tA).to.be.greaterThan(50);
+  });
+
+  test("warns on first line when stdbuf is unavailable", async ({
+    tmpdirServer,
+    minusculePath: _,
+  }) => {
+    const { server, tmpdir } = await tmpdirServer;
+    await setupHelloTalk(tmpdir);
+    const runRes = await fetch(`${server.url}/eval/demo/intro/cb1/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ src: "hello/hello.c" }),
+    });
+    const { runId } = await runRes.json();
+    const { chunks } = await readSse(
+      `${server.url}/eval/demo/intro/cb1/output/${runId}`,
+    );
+    expect(chunks.length).to.be.greaterThan(0);
+    expect(chunks[0].text).to.match(/^warning: stdbuf not found/);
+    // The wrapping disappears too: banners start with `$ make`, not
+    // `$ stdbuf …`.
+    const banner = chunks.find((c) => c.text.startsWith("$ "));
+    expect(banner?.text).to.match(/^\$ make\b/);
+    expect(banner?.text).not.to.match(/stdbuf/);
   });
 
   test("user edits override files in the temp dir", async ({ tmpdirServer }) => {

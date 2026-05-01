@@ -222,6 +222,300 @@ describe("FileExcerpt end-to-end", () => {
   );
 
   test(
+    "streams output incrementally and shows elapsed time when done",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "incr");
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "src.txt"), "x\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "all:\n\t@echo 1; sleep 0.05; echo 2; sleep 0.05; echo 3\nclean:\n\t@true\n",
+      );
+
+      const md = [
+        "# Demo",
+        "",
+        "## Run",
+        "",
+        '<FileExcerpt src="incr/src.txt" runMethod="Makefile" />',
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "incr.md"), md);
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        page.on("console", (msg) => {
+          if (msg.type() === "error")
+            console.error("[browser]", msg.text());
+        });
+
+        await page.goto(`${url}/talks/incr/run`);
+        await waitForText(page, ".file-excerpt", "x");
+        await page.click(".file-excerpt-run");
+
+        // As soon as "1" appears, "3" should not yet be present (proves
+        // we're rendering before the process exits).
+        await page.waitForFunction(
+          () => {
+            const out = document.querySelector(".file-excerpt-output");
+            return (out?.textContent ?? "").includes("1");
+          },
+          { timeout: 5000 },
+        );
+        const earlyText = await page.$eval(
+          ".file-excerpt-output",
+          (el) => el.textContent ?? "",
+        );
+        if (earlyText.includes("3")) {
+          throw new Error(
+            `output not incremental — saw "3" before run finished: ${earlyText}`,
+          );
+        }
+
+        await waitForText(page, ".file-excerpt-output", "3");
+
+        // Header should show "done (exit 0) in N.NNNs".
+        await page.waitForFunction(
+          () => {
+            const h = document.querySelector(".file-excerpt-popup-header");
+            return /done \(exit 0\) in \d+\.\d{1,3}s/.test(
+              h?.textContent ?? "",
+            );
+          },
+          { timeout: 10000 },
+        );
+      } finally {
+        await browser.close();
+      }
+    },
+  );
+
+  test(
+    "Manage menu toggles per-line timestamp prefixes",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "tsdir");
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "src.txt"), "x\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "all:\n\t@echo 1; sleep 0.05; echo 2; sleep 0.05; echo 3\nclean:\n\t@true\n",
+      );
+
+      const md = [
+        "# Demo",
+        "",
+        "## Run",
+        "",
+        '<FileExcerpt src="tsdir/src.txt" runMethod="Makefile" />',
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "tsdemo.md"), md);
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.goto(`${url}/talks/tsdemo/run`);
+        await waitForText(page, ".file-excerpt", "x");
+        await page.click(".file-excerpt-run");
+        await waitForText(page, ".file-excerpt-output", "3");
+        await page.waitForFunction(
+          () =>
+            document
+              .querySelector(".file-excerpt-popup-header")
+              ?.textContent?.includes("done") ?? false,
+          { timeout: 10000 },
+        );
+
+        // Toggle on.
+        await page.click(
+          '.file-excerpt-popup-header button:has-text("Manage")',
+        );
+        await page.click(
+          '.file-excerpt-menu button:has-text("Show timestamps")',
+        );
+        await page.waitForFunction(
+          () => {
+            const out = document.querySelector(".file-excerpt-output");
+            return /^\+0\.\d{3}s\s+1/m.test(out?.textContent ?? "");
+          },
+          { timeout: 5000 },
+        );
+
+        // Toggle off.
+        await page.click(
+          '.file-excerpt-popup-header button:has-text("Manage")',
+        );
+        await page.click(
+          '.file-excerpt-menu button:has-text("Hide timestamps")',
+        );
+        await page.waitForFunction(
+          () => {
+            const out = document.querySelector(".file-excerpt-output");
+            const txt = out?.textContent ?? "";
+            return txt.includes("1") && !/\+0\.\d{3}s/.test(txt);
+          },
+          { timeout: 5000 },
+        );
+      } finally {
+        await browser.close();
+      }
+    },
+  );
+
+  test(
+    "make clean failure surfaces in the popup with exit code and duration",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "broken");
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "src.txt"), "x\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "clean:\n\t@echo cleaning failed >&2\n\t@exit 7\nall:\n\t@true\n",
+      );
+
+      const md = [
+        "# Demo",
+        "",
+        "## Run",
+        "",
+        '<FileExcerpt src="broken/src.txt" runMethod="Makefile" />',
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "broken.md"), md);
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.goto(`${url}/talks/broken/run`);
+        await waitForText(page, ".file-excerpt", "x");
+        await page.click(".file-excerpt-run");
+
+        await waitForText(page, ".file-excerpt-output", "cleaning failed");
+        await page.waitForFunction(
+          () => {
+            const h = document.querySelector(".file-excerpt-popup-header");
+            const m = /done \(exit (\d+)\) in \d+\.\d{1,3}s/.exec(
+              h?.textContent ?? "",
+            );
+            return m !== null && m[1] !== "0";
+          },
+          { timeout: 10000 },
+        );
+      } finally {
+        await browser.close();
+      }
+    },
+  );
+
+  test(
+    "Manage menu can show captured make clean output and switch back",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "cleanok");
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "src.txt"), "x\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "all:\n\t@echo built\nclean:\n\t@echo CLEANED\n",
+      );
+
+      const md = [
+        "# Demo",
+        "",
+        "## Run",
+        "",
+        '<FileExcerpt src="cleanok/src.txt" runMethod="Makefile" />',
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "cleanok.md"), md);
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.goto(`${url}/talks/cleanok/run`);
+        await waitForText(page, ".file-excerpt", "x");
+        await page.click(".file-excerpt-run");
+        await waitForText(page, ".file-excerpt-output", "built");
+        await page.waitForFunction(
+          () =>
+            document
+              .querySelector(".file-excerpt-popup-header")
+              ?.textContent?.includes("done") ?? false,
+          { timeout: 10000 },
+        );
+
+        // make clean output should NOT appear in live output.
+        const liveText = await page.$eval(
+          ".file-excerpt-output",
+          (el) => el.textContent ?? "",
+        );
+        if (liveText.includes("CLEANED")) {
+          throw new Error(
+            `make clean output leaked into live stream: ${liveText}`,
+          );
+        }
+
+        // Open menu and switch to make-clean view.
+        await page.click(
+          '.file-excerpt-popup-header button:has-text("Manage")',
+        );
+        await page.click(
+          '.file-excerpt-menu button:has-text("Show `make clean` output")',
+        );
+        await page.waitForFunction(
+          () =>
+            (
+              document.querySelector("textarea.file-excerpt-output") as
+                | HTMLTextAreaElement
+                | null
+            )?.value?.includes("CLEANED") ?? false,
+          { timeout: 5000 },
+        );
+
+        // Switch back.
+        await page.click(
+          '.file-excerpt-popup-header button:has-text("Manage")',
+        );
+        await page.click(
+          '.file-excerpt-menu button:has-text("Show `make` output")',
+        );
+        await page.waitForFunction(
+          () =>
+            !!document.querySelector("pre.file-excerpt-output") &&
+            !document.querySelector("textarea.file-excerpt-output"),
+          { timeout: 5000 },
+        );
+      } finally {
+        await browser.close();
+      }
+    },
+  );
+
+  test(
     "without runMethod the excerpt is read-only and has no Run button",
     { timeout: 30000 },
     async ({ tmpdirBrowserServer }) => {

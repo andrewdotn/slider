@@ -1,6 +1,25 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+
+// Force make etc to stream output if possible
+function detectStdbuf(): boolean {
+  try {
+    const r = spawnSync("stdbuf", ["--help"], { stdio: "ignore" });
+    return r.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+function lineBuffered(
+  cmd: string,
+  args: string[],
+  hasStdbuf: boolean,
+): { cmd: string; args: string[] } {
+  if (hasStdbuf) return { cmd: "stdbuf", args: ["-oL", "-eL", cmd, ...args] };
+  return { cmd, args };
+}
 
 const MAX_DIRS_PER_CODEBLOCK = 5;
 
@@ -12,9 +31,13 @@ export type RunRequest = {
   files?: Record<string, string>;
 };
 
-type OutputChunk = { stream: "stdout" | "stderr"; text: string };
+type OutputChunk = { stream: "stdout" | "stderr"; text: string; t: number };
 
-export type EndEvent = { exitCode: number | null; signal: NodeJS.Signals | null };
+export type EndEvent = {
+  exitCode: number | null;
+  signal: NodeJS.Signals | null;
+  durationMs: number;
+};
 
 type Listener = {
   onChunk: (chunk: OutputChunk) => void;
@@ -30,6 +53,7 @@ type Run = {
   cleanChunks: OutputChunk[];
   exited: EndEvent | null;
   listeners: Set<Listener>;
+  startedAt: number;
 };
 
 const ANSI_RE =
@@ -123,6 +147,7 @@ export class EvalManager {
       cleanChunks: [],
       exited: null,
       listeners: new Set(),
+      startedAt: Date.now(),
     };
     this.runs.set(runId, run);
 
@@ -150,21 +175,38 @@ export class EvalManager {
     run: Run,
     cmd: string,
     args: string[],
+    hasStdbuf: boolean,
+    opts: { live?: boolean } = {},
   ): Promise<{ code: number | null; signal: NodeJS.Signals | null; chunks: OutputChunk[] }> {
     return new Promise((resolve) => {
       const chunks: OutputChunk[] = [];
-      const proc = spawn(cmd, args, { cwd: run.tempDir });
+      const wrapped = lineBuffered(cmd, args, hasStdbuf);
+      const banner: OutputChunk = {
+        stream: "stdout",
+        text: `$ ${[wrapped.cmd, ...wrapped.args].join(" ")}\n`,
+        t: Date.now(),
+      };
+      chunks.push(banner);
+      if (opts.live) this.emit(run, banner);
+      const proc = spawn(wrapped.cmd, wrapped.args, { cwd: run.tempDir });
       run.proc = proc;
       proc.stdout.setEncoding("utf8");
       proc.stderr.setEncoding("utf8");
-      proc.stdout.on("data", (text: string) => {
-        chunks.push({ stream: "stdout", text });
-      });
-      proc.stderr.on("data", (text: string) => {
-        chunks.push({ stream: "stderr", text });
-      });
+      const onData = (stream: "stdout" | "stderr") => (text: string) => {
+        const chunk: OutputChunk = { stream, text, t: Date.now() };
+        chunks.push(chunk);
+        if (opts.live) this.emit(run, chunk);
+      };
+      proc.stdout.on("data", onData("stdout"));
+      proc.stderr.on("data", onData("stderr"));
       proc.on("error", (err) => {
-        chunks.push({ stream: "stderr", text: `${err.message}\n` });
+        const chunk: OutputChunk = {
+          stream: "stderr",
+          text: `${err.message}\n`,
+          t: Date.now(),
+        };
+        chunks.push(chunk);
+        if (opts.live) this.emit(run, chunk);
       });
       proc.on("close", (code, signal) => {
         resolve({ code, signal, chunks });
@@ -172,22 +214,49 @@ export class EvalManager {
     });
   }
 
+  private duration(run: Run): number {
+    return Date.now() - run.startedAt;
+  }
+
   private async execSequence(run: Run) {
     try {
-      const cleanResult = await this.spawnStep(run, "make", ["clean"]);
+      const hasStdbuf = detectStdbuf();
+      if (!hasStdbuf) {
+        this.emit(run, {
+          stream: "stderr",
+          text: "warning: stdbuf not found on $PATH, it’s in gnu coreutils",
+          t: Date.now(),
+        });
+      }
+      const cleanResult = await this.spawnStep(run, "make", ["clean"], hasStdbuf);
       run.cleanChunks = cleanResult.chunks;
       if (cleanResult.code !== 0) {
         // Surface clean output only on failure.
         for (const c of cleanResult.chunks) this.emit(run, c);
-        this.finish(run, { exitCode: cleanResult.code, signal: cleanResult.signal });
+        this.finish(run, {
+          exitCode: cleanResult.code,
+          signal: cleanResult.signal,
+          durationMs: this.duration(run),
+        });
         return;
       }
-      const buildResult = await this.spawnStep(run, "make", []);
-      for (const c of buildResult.chunks) this.emit(run, c);
-      this.finish(run, { exitCode: buildResult.code, signal: buildResult.signal });
+      const buildResult = await this.spawnStep(run, "make", [], hasStdbuf, { live: true });
+      this.finish(run, {
+        exitCode: buildResult.code,
+        signal: buildResult.signal,
+        durationMs: this.duration(run),
+      });
     } catch (err) {
-      this.emit(run, { stream: "stderr", text: `${(err as Error).message}\n` });
-      this.finish(run, { exitCode: null, signal: null });
+      this.emit(run, {
+        stream: "stderr",
+        text: `${(err as Error).message}\n`,
+        t: Date.now(),
+      });
+      this.finish(run, {
+        exitCode: null,
+        signal: null,
+        durationMs: this.duration(run),
+      });
     }
   }
 

@@ -66,7 +66,50 @@ function codeblockIdFor(src: string): string {
     .replace(/^-|-$/g, "") || "cb";
 }
 
-type EvalEnd = { exitCode: number | null; signal: string | null };
+type EvalEnd = {
+  exitCode: number | null;
+  signal: string | null;
+  durationMs: number;
+};
+
+type OutputChunk = { stream: "stdout" | "stderr"; text: string; t: number };
+
+function formatOffset(ms: number): string {
+  const s = ms / 1000;
+  return `+${s.toFixed(3)}s`;
+}
+
+function formatSeconds(ms: number): string {
+  return `${(ms / 1000).toFixed(3)}s`;
+}
+
+function renderWithTimestamps(
+  chunks: OutputChunk[],
+  startT: number,
+): string {
+  let out = "";
+  let atLineStart = true;
+  for (const c of chunks) {
+    const text = c.text;
+    let i = 0;
+    while (i < text.length) {
+      if (atLineStart) {
+        out += formatOffset(c.t - startT).padEnd(10);
+        atLineStart = false;
+      }
+      const nl = text.indexOf("\n", i);
+      if (nl === -1) {
+        out += text.slice(i);
+        i = text.length;
+      } else {
+        out += text.slice(i, nl + 1);
+        i = nl + 1;
+        atLineStart = true;
+      }
+    }
+  }
+  return out;
+}
 
 // Module-level cache of edited code-block contents, keyed by `${talk}|${src}`,
 // so edits survive slide navigation within the SPA. A page reload clears it.
@@ -87,14 +130,27 @@ export function FileExcerpt({
 
   const [runId, setRunId] = useState<string | null>(null);
   const [tempDir, setTempDir] = useState<string | null>(null);
-  const [output, setOutput] = useState<string>("");
+  const [chunks, setChunks] = useState<OutputChunk[]>([]);
   const [running, setRunning] = useState(false);
   const [end, setEnd] = useState<EvalEnd | null>(null);
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cleanText, setCleanText] = useState<string | null>(null);
   const [popupSize, setPopupSize] = useState({ width: 600, height: 320 });
+  const [showTimestamps, setShowTimestamps] = useState(false);
+  const [runStartT, setRunStartT] = useState<number | null>(null);
+  const [, setTick] = useState(0);
   const esRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    if (!running || runStartT === null) return;
+    const id = setInterval(() => setTick((n) => n + 1), 100);
+    return () => clearInterval(id);
+  }, [running, runStartT]);
+
+  const output = showTimestamps && runStartT !== null
+    ? renderWithTimestamps(chunks, runStartT)
+    : chunks.map((c) => c.text).join("");
 
   const codeblockId = useMemo(() => codeblockIdFor(src), [src]);
   const slideSeg = slideSlug || "_";
@@ -164,9 +220,10 @@ export function FileExcerpt({
   }, [original, lineHighlights, runMethod, src]);
 
   const startRun = async () => {
-    setOutput("");
+    setChunks([]);
     setEnd(null);
     setRunning(true);
+    setRunStartT(null);
     setPopupOpen(true);
     setMenuOpen(false);
     setCleanText(null);
@@ -193,12 +250,16 @@ export function FileExcerpt({
         },
       );
     } catch (e) {
-      setOutput(`fetch failed: ${(e as Error).message}\n`);
+      const t = Date.now();
+      setRunStartT((s) => s ?? t);
+      setChunks([{ stream: "stderr", text: `fetch failed: ${(e as Error).message}\n`, t }]);
       setRunning(false);
       return;
     }
     if (!r.ok) {
-      setOutput(`run failed: HTTP ${r.status}\n`);
+      const t = Date.now();
+      setRunStartT((s) => s ?? t);
+      setChunks([{ stream: "stderr", text: `run failed: HTTP ${r.status}\n`, t }]);
       setRunning(false);
       return;
     }
@@ -212,8 +273,9 @@ export function FileExcerpt({
     esRef.current = es;
     es.onmessage = (ev) => {
       try {
-        const chunk = JSON.parse(ev.data) as { stream: string; text: string };
-        setOutput((s) => s + chunk.text);
+        const chunk = JSON.parse(ev.data) as OutputChunk;
+        setRunStartT((s) => s ?? chunk.t);
+        setChunks((cs) => [...cs, chunk]);
       } catch {
         // ignore
       }
@@ -222,7 +284,7 @@ export function FileExcerpt({
       try {
         setEnd(JSON.parse(ev.data));
       } catch {
-        setEnd({ exitCode: null, signal: null });
+        setEnd({ exitCode: null, signal: null, durationMs: 0 });
       }
       setRunning(false);
       es.close();
@@ -338,9 +400,13 @@ export function FileExcerpt({
           <div className="file-excerpt-popup-header">
             <span>
               {running
-                ? "running…"
+                ? `running…${
+                    runStartT !== null
+                      ? ` (${formatSeconds(Date.now() - runStartT)})`
+                      : ""
+                  }`
                 : end
-                ? `done (exit ${end.exitCode ?? "?"})`
+                ? `done (exit ${end.exitCode ?? "?"}) in ${formatSeconds(end.durationMs)}`
                 : "ready"}
             </span>
             <div className="file-excerpt-popup-buttons">
@@ -373,6 +439,17 @@ export function FileExcerpt({
                 <li>
                   <button type="button" onClick={copyPath}>
                     Copy path
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setShowTimestamps((v) => !v);
+                    }}
+                  >
+                    {showTimestamps ? "Hide timestamps" : "Show timestamps"}
                   </button>
                 </li>
                 <li>
