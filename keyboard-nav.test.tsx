@@ -47,6 +47,28 @@ describe("Keyboard Navigation", () => {
     );
   });
 
+  it("should not navigate when focus is inside a CodeMirror editor", async () => {
+    window.history.pushState({}, "", "/talks/sample-talk1/");
+    const screen = await render(<App />);
+
+    await expect.element(screen.getByText("Slide 1")).toBeVisible();
+
+    const cm = document.createElement("div");
+    cm.className = "cm-editor";
+    const input = document.createElement("input");
+    cm.appendChild(input);
+    document.body.appendChild(cm);
+    input.focus();
+
+    const pushStateSpy = vi.spyOn(window.history, "pushState");
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+    );
+
+    expect(pushStateSpy).not.toHaveBeenCalled();
+    document.body.removeChild(cm);
+  });
+
   it("should navigate to previous slide on ArrowLeft", async () => {
     window.history.pushState({}, "", "/talks/sample-talk1/slide-2");
     const screen = await render(<App />);
