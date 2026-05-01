@@ -1,5 +1,5 @@
 import { describe, it, expect, test as baseTest } from "vitest";
-import { Server } from "./server.ts";
+import { Server, scriptArgs } from "./server.ts";
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { i } from "./util/i.ts";
@@ -172,5 +172,24 @@ describe("slider", () => {
     expect(resStatic.status).to.equal(200);
     const staticBody = await resStatic.text();
     expect(staticBody).to.equal(talkContent);
+  });
+});
+
+describe("scriptArgs", () => {
+  it("uses BSD argv on darwin", () => {
+    expect(scriptArgs("darwin")).to.deep.equal([
+      "-Fq",
+      "/dev/null",
+      "bash",
+      "--login",
+    ]);
+  });
+
+  it("uses util-linux argv on linux", () => {
+    expect(scriptArgs("linux")).to.deep.equal([
+      "-qfec",
+      "bash --login",
+      "/dev/null",
+    ]);
   });
 });

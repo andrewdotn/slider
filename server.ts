@@ -34,6 +34,17 @@ function pickFreePort(): Promise<number> {
   });
 }
 
+export function scriptArgs(platform: NodeJS.Platform): string[] {
+  // BSD `script` (macOS) takes `script [-Fq] file [command ...]`; it has
+  // no -c flag and no -e flag. -F flushes after each write.
+  if (platform === "darwin") {
+    return ["-Fq", "/dev/null", "bash", "--login"];
+  }
+  // util-linux `script`: -q quiet, -f flush, -e propagate exit status,
+  // -c CMD run a command. Typescript log goes to /dev/null.
+  return ["-qfec", "bash --login", "/dev/null"];
+}
+
 export class Server {
   app: Express;
   vite?: ViteDevServer;
@@ -296,13 +307,14 @@ export class Server {
         return;
       }
       wss.handleUpgrade(req, socket, head, (ws) => {
-        // Use util-linux `script` to allocate a pty for bash without
-        // needing a native node-pty binding. -q quiet, -f flush after each
-        // write, -e propagate child exit status, -c CMD run a command,
-        // and write the typescript log to /dev/null.
+        // Use `script` to allocate a pty for bash without needing a native
+        // node-pty binding. The util-linux and BSD/macOS variants take
+        // incompatible argv: util-linux is `script [opts] [file] [-c cmd]`
+        // while BSD is `script [opts] file [command ...]`.
+        const args = scriptArgs(process.platform);
         const pty = childSpawn(
           "script",
-          ["-qfec", "bash --login", "/dev/null"],
+          args,
           {
             cwd,
             env: {
@@ -314,6 +326,12 @@ export class Server {
             stdio: ["pipe", "pipe", "pipe"],
           },
         );
+        // If `script` exits or the pty is torn down while the websocket is
+        // still open, subsequent writes to stdin produce EPIPE. Without a
+        // listener node turns it into an unhandled 'error' and crashes the
+        // whole process.
+        pty.stdin.on("error", () => {});
+        pty.on("error", () => {});
         this.ptys.add(pty);
         pty.stdout.on("data", (d: Buffer) => {
           try {
