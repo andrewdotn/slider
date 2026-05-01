@@ -516,6 +516,153 @@ describe("FileExcerpt end-to-end", () => {
   );
 
   test(
+    "popup toolbar exposes play/stop and font-size buttons with tooltips",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "tb");
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "src.txt"), "x\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "all:\n\t@echo hi\nclean:\n\t@true\n",
+      );
+
+      const md = [
+        "# Demo",
+        "",
+        "## Run",
+        "",
+        '<FileExcerpt src="tb/src.txt" runMethod="Makefile" />',
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "tbdemo.md"), md);
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.goto(`${url}/talks/tbdemo/run`);
+        await waitForText(page, ".file-excerpt", "x");
+        await page.click(".file-excerpt-run");
+        await waitForText(page, ".file-excerpt-output", "hi");
+        await page.waitForFunction(
+          () =>
+            document
+              .querySelector(".file-excerpt-popup-header")
+              ?.textContent?.includes("done") ?? false,
+          { timeout: 10000 },
+        );
+
+        // Toolbar buttons exist with tooltips.
+        for (const title of ["Re-run", "Increase font size", "Decrease font size"]) {
+          const sel = `.file-excerpt-popup-header button[title="${title}"]`;
+          const found = await page.$(sel);
+          if (!found) throw new Error(`expected toolbar button: ${title}`);
+        }
+
+        // Initial output font-size is 12px.
+        const initial = await page.$eval(
+          "pre.file-excerpt-output",
+          (el) => (el as HTMLElement).style.fontSize,
+        );
+        if (initial !== "12px") {
+          throw new Error(`expected initial font-size 12px, got ${initial}`);
+        }
+
+        // A+ increases.
+        await page.click(
+          '.file-excerpt-popup-header button[title="Increase font size"]',
+        );
+        await page.waitForFunction(
+          () =>
+            (document.querySelector("pre.file-excerpt-output") as HTMLElement)
+              ?.style.fontSize === "14px",
+          { timeout: 2000 },
+        );
+
+        // A- decreases.
+        await page.click(
+          '.file-excerpt-popup-header button[title="Decrease font size"]',
+        );
+        await page.waitForFunction(
+          () =>
+            (document.querySelector("pre.file-excerpt-output") as HTMLElement)
+              ?.style.fontSize === "12px",
+          { timeout: 2000 },
+        );
+      } finally {
+        await browser.close();
+      }
+    },
+  );
+
+  test(
+    "play toolbar button toggles to stop while running and re-runs when idle",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "pl");
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "src.txt"), "x\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "all:\n\t@echo START; sleep 5; echo END\nclean:\n\t@true\n",
+      );
+
+      const md = [
+        "# Demo",
+        "",
+        "## Run",
+        "",
+        '<FileExcerpt src="pl/src.txt" runMethod="Makefile" />',
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "pldemo.md"), md);
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.goto(`${url}/talks/pldemo/run`);
+        await waitForText(page, ".file-excerpt", "x");
+        await page.click(".file-excerpt-run");
+        await waitForText(page, ".file-excerpt-output", "START");
+
+        // While running, toolbar's play button shows Stop.
+        await page.waitForSelector(
+          '.file-excerpt-popup-header button[title="Stop"]',
+          { timeout: 5000 },
+        );
+        await page.click(
+          '.file-excerpt-popup-header button[title="Stop"]',
+        );
+
+        // After kill, header shows done and button reverts to Re-run.
+        await page.waitForFunction(
+          () =>
+            document
+              .querySelector(".file-excerpt-popup-header")
+              ?.textContent?.includes("done") ?? false,
+          { timeout: 10000 },
+        );
+        await page.waitForSelector(
+          '.file-excerpt-popup-header button[title="Re-run"]',
+          { timeout: 5000 },
+        );
+      } finally {
+        await browser.close();
+      }
+    },
+  );
+
+  test(
     "without runMethod the excerpt is read-only and has no Run button",
     { timeout: 30000 },
     async ({ tmpdirBrowserServer }) => {

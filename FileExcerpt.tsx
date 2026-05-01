@@ -137,6 +137,7 @@ export function FileExcerpt({
   const [menuOpen, setMenuOpen] = useState(false);
   const [cleanText, setCleanText] = useState<string | null>(null);
   const [popupSize, setPopupSize] = useState({ width: 600, height: 320 });
+  const [outputFontSize, setOutputFontSize] = useState(12);
   const [showTimestamps, setShowTimestamps] = useState(false);
   const [runStartT, setRunStartT] = useState<number | null>(null);
   const [, setTick] = useState(0);
@@ -410,6 +411,33 @@ export function FileExcerpt({
                 : "ready"}
             </span>
             <div className="file-excerpt-popup-buttons">
+              <button
+                type="button"
+                className="file-excerpt-toolbar-btn"
+                onClick={running ? killRun : startRun}
+                title={running ? "Stop" : "Re-run"}
+                aria-label={running ? "Stop" : "Re-run"}
+              >
+                {running ? "■" : "▶"}
+              </button>
+              <button
+                type="button"
+                className="file-excerpt-toolbar-btn"
+                onClick={() => setOutputFontSize((s) => Math.min(48, s + 2))}
+                title="Increase font size"
+                aria-label="Increase font size"
+              >
+                A+
+              </button>
+              <button
+                type="button"
+                className="file-excerpt-toolbar-btn"
+                onClick={() => setOutputFontSize((s) => Math.max(8, s - 2))}
+                title="Decrease font size"
+                aria-label="Decrease font size"
+              >
+                A−
+              </button>
               <button type="button" onClick={() => setMenuOpen((v) => !v)}>
                 Manage ▾
               </button>
@@ -475,9 +503,15 @@ export function FileExcerpt({
               className="file-excerpt-output"
               readOnly
               value={cleanText}
+              style={{ fontSize: outputFontSize }}
             />
           ) : (
-            <pre className="file-excerpt-output">{output}</pre>
+            <pre
+              className="file-excerpt-output"
+              style={{ fontSize: outputFontSize }}
+            >
+              {output}
+            </pre>
           )}
         </div>
       )}
