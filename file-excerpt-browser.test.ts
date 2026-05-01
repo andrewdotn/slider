@@ -119,6 +119,109 @@ describe("FileExcerpt end-to-end", () => {
   );
 
   test(
+    "edits in CodeMirror persist across slide navigation until reload",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const helloDir = path.join(tmpdir, "eval-hello");
+      await fs.mkdir(helloDir, { recursive: true });
+      await fs.writeFile(
+        path.join(helloDir, "hello.c"),
+        'int main(){ printf("hello world\\n"); }\n',
+      );
+      await fs.writeFile(
+        path.join(helloDir, "Makefile"),
+        "all:\n\t@cat hello.c\n\nclean:\n\t@true\n",
+      );
+
+      const md = [
+        "# Demo",
+        "",
+        "## First",
+        "",
+        '<FileExcerpt src="eval-hello/hello.c" runMethod="Makefile" />',
+        "",
+        "## Second",
+        "",
+        "Other slide.",
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "persist.md"), md);
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        page.on("console", (msg) => {
+          if (msg.type() === "error") {
+            console.error("[browser]", msg.text());
+          }
+        });
+
+        await page.goto(`${url}/talks/persist/first`);
+        await waitForText(page, ".file-excerpt", "hello world");
+
+        // Edit the file content via CodeMirror.
+        await page.click(".cm-content");
+        await page.keyboard.press("Control+A");
+        await page.keyboard.press("Delete");
+        await page.keyboard.type('int main(){ printf("PERSISTED EDIT\\n"); }');
+        await waitForText(page, ".cm-content", "PERSISTED EDIT");
+
+        // SPA-navigate to the second slide, then back to the first.
+        await page.evaluate(() => {
+          history.pushState({}, "", "/talks/persist/second");
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        });
+        await page.waitForFunction(
+          () => document.body.textContent?.includes("Other slide.") ?? false,
+          { timeout: 10000 },
+        );
+        // Editor should be unmounted on the second slide.
+        const cmOnSecond = await page.$(".cm-content");
+        if (cmOnSecond) {
+          throw new Error("expected no CodeMirror editor on second slide");
+        }
+
+        await page.evaluate(() => {
+          history.pushState({}, "", "/talks/persist/first");
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        });
+        await waitForText(page, ".cm-content", "PERSISTED EDIT");
+
+        // The original file content should not be visible in the editor.
+        const cmText = await page.$eval(
+          ".cm-content",
+          (el) => el.textContent ?? "",
+        );
+        if (cmText.includes("hello world")) {
+          throw new Error(
+            `expected edits to persist; editor still shows original: ${cmText}`,
+          );
+        }
+
+        // After a full page reload, the cache is cleared and original returns.
+        await page.reload();
+        await waitForText(page, ".cm-content", "hello world");
+        const afterReload = await page.$eval(
+          ".cm-content",
+          (el) => el.textContent ?? "",
+        );
+        if (afterReload.includes("PERSISTED EDIT")) {
+          throw new Error(
+            `expected reload to clear edits; editor still shows: ${afterReload}`,
+          );
+        }
+      } finally {
+        await browser.close();
+      }
+    },
+  );
+
+  test(
     "without runMethod the excerpt is read-only and has no Run button",
     { timeout: 30000 },
     async ({ tmpdirBrowserServer }) => {

@@ -68,6 +68,10 @@ function codeblockIdFor(src: string): string {
 
 type EvalEnd = { exitCode: number | null; signal: string | null };
 
+// Module-level cache of edited code-block contents, keyed by `${talk}|${src}`,
+// so edits survive slide navigation within the SPA. A page reload clears it.
+const editedCache = new Map<string, string>();
+
 export function FileExcerpt({
   src,
   lineHighlights = [],
@@ -93,6 +97,7 @@ export function FileExcerpt({
 
   const codeblockId = useMemo(() => codeblockIdFor(src), [src]);
   const slideSeg = slideSlug || "_";
+  const cacheKey = `${talk}|${src}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -104,7 +109,7 @@ export function FileExcerpt({
       .then((text) => {
         if (cancelled) return;
         setOriginal(text);
-        editedRef.current = text;
+        editedRef.current = editedCache.get(cacheKey) ?? text;
       })
       .catch((e) => !cancelled && setLoadError(String(e.message ?? e)));
     return () => {
@@ -123,7 +128,11 @@ export function FileExcerpt({
       EditorView.editable.of(!!runMethod),
       EditorState.readOnly.of(!runMethod),
       EditorView.updateListener.of((u) => {
-        if (u.docChanged) editedRef.current = u.state.doc.toString();
+        if (u.docChanged) {
+          const text = u.state.doc.toString();
+          editedRef.current = text;
+          editedCache.set(cacheKey, text);
+        }
       }),
       EditorView.theme({
         "&": { backgroundColor: "transparent", fontSize: "inherit" },
@@ -135,9 +144,13 @@ export function FileExcerpt({
     ];
     if (lang) exts.push(lang);
 
+    const initialDoc = (editedCache.get(cacheKey) ?? original).replace(
+      /\n$/,
+      "",
+    );
     const view = new EditorView({
       state: EditorState.create({
-        doc: original.replace(/\n$/, ""),
+        doc: initialDoc,
         extensions: exts,
       }),
       parent: editorHost.current,
