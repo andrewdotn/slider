@@ -152,7 +152,7 @@ export class Server {
       base: "/vite",
       server: {
         middlewareMode: true,
-        hmr: this.isTest ? false : undefined,
+        hmr: this.isTest ? false : { port: 0 },
         ws: this.isTest ? false : undefined,
       },
       optimizeDeps: { noDiscovery: this.isTest },
