@@ -37,6 +37,17 @@ function pickFreePort(): Promise<number> {
   });
 }
 
+export function scriptArgs(platform: NodeJS.Platform): string[] {
+  // BSD `script` (macOS) takes `script [-Fq] file [command ...]`; it has
+  // no -c flag and no -e flag. -F flushes after each write.
+  if (platform === "darwin") {
+    return ["-Fq", "/dev/null", "bash", "--login"];
+  }
+  // util-linux `script`: -q quiet, -f flush, -e propagate exit status,
+  // -c CMD run a command. Typescript log goes to /dev/null.
+  return ["-qfec", "bash --login", "/dev/null"];
+}
+
 export class Server {
   app: Express;
   vite?: ViteDevServer;
@@ -311,6 +322,12 @@ export class Server {
           stdio: ["pipe", "pipe", "pipe", "pipe"],
         });
         const ctrl = pty.stdio[3] as Writable | null;
+        // If the pty is torn down while the websocket is still open,
+        // subsequent writes to stdin produce EPIPE. Without a listener
+        // node turns it into an unhandled 'error' and crashes the process.
+        pty.stdin.on("error", () => {});
+        pty.on("error", () => {});
+        ctrl?.on("error", () => {});
         this.ptys.add(pty);
         pty.stdout?.on("data", (d: Buffer) => {
           try {
