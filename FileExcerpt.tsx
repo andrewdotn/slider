@@ -156,6 +156,7 @@ function ShellTerminal({
   codeblockId,
   runId,
   size,
+  fontSize,
   onExit,
 }: {
   talk: string;
@@ -163,6 +164,7 @@ function ShellTerminal({
   codeblockId: string;
   runId: string;
   size: { width: number; height: number };
+  fontSize: number;
   onExit: () => void;
 }) {
   const host = useRef<HTMLDivElement | null>(null);
@@ -191,7 +193,7 @@ function ShellTerminal({
       if (cancelled || !host.current) return;
       term = new Terminal({
         fontFamily: '"Ubuntu Mono", "Courier New", monospace',
-        fontSize: 12,
+        fontSize,
         cursorBlink: true,
         convertEol: false,
       });
@@ -273,6 +275,29 @@ function ShellTerminal({
       ws.send(`\x1b[8;${term.rows};${term.cols}t`);
     }
   }, [size.width, size.height]);
+
+  useEffect(() => {
+    const term = termRef.current;
+    const h = host.current;
+    if (!term || !h) return;
+    const apply = () => {
+      const t = termRef.current;
+      const el = host.current;
+      const sock = wsRef.current;
+      if (!t || !el) return;
+      t.options.fontSize = fontSize;
+      customFit(t, el);
+      if (sock && sock.readyState === WebSocket.OPEN) {
+        sock.send(`\x1b[8;${t.rows};${t.cols}t`);
+      }
+    };
+    const fontsApi = (document as unknown as { fonts?: FontFaceSet }).fonts;
+    if (fontsApi?.load) {
+      fontsApi.load(`${fontSize}px "Ubuntu Mono"`).then(apply).catch(apply);
+    } else {
+      apply();
+    }
+  }, [fontSize]);
 
   return <div className="file-excerpt-shell" ref={host} />;
 }
@@ -696,6 +721,7 @@ export function FileExcerpt({
               codeblockId={codeblockId}
               runId={runId}
               size={popupSize}
+              fontSize={outputFontSize}
               onExit={() => setShellOpen(false)}
             />
           ) : cleanText !== null ? (
