@@ -371,6 +371,8 @@ export function App() {
     }
     const clampedSub = Math.min(Math.max(1, subIdx), subCount);
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as Element | null;
+      if (target && target.closest(".cm-editor")) return;
       let href: string | null = null;
       if (e.key === "ArrowRight") {
         if (clampedSub < subCount) {
