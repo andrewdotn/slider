@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createServer as createViteServer, type ViteDevServer } from "vite";
 import { i } from "./util/i.ts";
 import * as http from "http";
+import * as net from "node:net";
 import * as fs from "node:fs/promises";
 import { promisify } from "node:util";
 
@@ -13,6 +14,23 @@ import { parseTalk } from "./slides.ts";
 import morgan from "morgan";
 import { watch, type FSWatcher } from "node:fs";
 import { EvalManager } from "./eval.ts";
+
+function pickFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.on("error", reject);
+    srv.listen(0, () => {
+      const addr = srv.address();
+      if (addr && typeof addr === "object") {
+        const { port } = addr;
+        srv.close(() => resolve(port));
+      } else {
+        srv.close(() => reject(new Error("could not pick free port")));
+      }
+    });
+  });
+}
 
 export class Server {
   app: Express;
@@ -148,11 +166,12 @@ export class Server {
   }
 
   private async _installViteMiddleware() {
+    const hmrPort = this.isTest ? false : await pickFreePort();
     const vite = await createViteServer({
       base: "/vite",
       server: {
         middlewareMode: true,
-        hmr: this.isTest ? false : { port: 0 },
+        hmr: hmrPort === false ? false : { port: hmrPort },
         ws: this.isTest ? false : undefined,
       },
       optimizeDeps: { noDiscovery: this.isTest },
