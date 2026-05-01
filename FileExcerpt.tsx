@@ -244,13 +244,18 @@ export function FileExcerpt({
     );
   };
 
-  const viewClean = async () => {
+  const viewMakeClean = async () => {
     setMenuOpen(false);
     if (!runId) return;
     const r = await fetch(
-      `/eval/${talk}/${slideSeg}/${codeblockId}/output/${runId}/clean`,
+      `/eval/${talk}/${slideSeg}/${codeblockId}/output/${runId}/make-clean`,
     );
     setCleanText(await r.text());
+  };
+
+  const viewMake = () => {
+    setMenuOpen(false);
+    setCleanText(null);
   };
 
   const copyPath = async () => {
@@ -355,9 +360,15 @@ export function FileExcerpt({
             {menuOpen && (
               <ul className="file-excerpt-menu">
                 <li>
-                  <button type="button" onClick={viewClean}>
-                    View clean output
-                  </button>
+                  {cleanText !== null ? (
+                    <button type="button" onClick={viewMake}>
+                      Show `make` output
+                    </button>
+                  ) : (
+                    <button type="button" onClick={viewMakeClean}>
+                      Show `make clean` output
+                    </button>
+                  )}
                 </li>
                 <li>
                   <button type="button" onClick={copyPath}>

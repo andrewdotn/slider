@@ -210,7 +210,7 @@ describe("eval", () => {
     expect(exists).to.equal(false);
   });
 
-  test("clean output endpoint strips ansi", async ({ tmpdirServer }) => {
+  test("make-clean output endpoint returns clean output with ansi stripped", async ({ tmpdirServer }) => {
     const { server, tmpdir } = await tmpdirServer;
     const ansiDir = path.join(tmpdir, "ansi");
     await fs.mkdir(ansiDir, { recursive: true });
@@ -218,7 +218,7 @@ describe("eval", () => {
     await fs.writeFile(path.join(ansiDir, "x.txt"), "x");
     await fs.writeFile(
       path.join(ansiDir, "Makefile"),
-      "all:\n\t@printf '\\x1b[31mred\\x1b[0m text\\n'\nclean:\n\t@true\n",
+      "all:\n\t@echo built\nclean:\n\t@printf '\\x1b[31mcleaning\\x1b[0m done\\n'\n",
     );
 
     const runRes = await fetch(
@@ -230,13 +230,20 @@ describe("eval", () => {
       },
     );
     const { runId } = await runRes.json();
-    await readSse(`${server.url}/eval/demo/intro/cb1/output/${runId}`);
+    const { chunks } = await readSse(
+      `${server.url}/eval/demo/intro/cb1/output/${runId}`,
+    );
+
+    // make clean output is NOT emitted to the live stream on success.
+    const live = chunks.map((c) => c.text).join("");
+    expect(live).to.not.contain("cleaning");
+    expect(live).to.contain("built");
 
     const cleanRes = await fetch(
-      `${server.url}/eval/demo/intro/cb1/output/${runId}/clean`,
+      `${server.url}/eval/demo/intro/cb1/output/${runId}/make-clean`,
     );
     const text = await cleanRes.text();
-    expect(text).to.contain("red text");
+    expect(text).to.contain("cleaning done");
     expect(text).to.not.contain("\x1b");
   });
 });

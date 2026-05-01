@@ -27,6 +27,7 @@ type Run = {
   tempDir: string;
   proc: ChildProcess | null;
   chunks: OutputChunk[];
+  cleanChunks: OutputChunk[];
   exited: EndEvent | null;
   listeners: Set<Listener>;
 };
@@ -119,13 +120,15 @@ export class EvalManager {
       tempDir,
       proc: null,
       chunks: [],
+      cleanChunks: [],
       exited: null,
       listeners: new Set(),
     };
     this.runs.set(runId, run);
 
-    // Run `make clean` then `make`. Buffer clean output; only emit it if
-    // clean fails.
+    // Run `make clean` then `make`. `make clean` output is captured on the
+    // run for retrieval via getMakeCleanOutput, and is also emitted to the
+    // live stream when `make clean` itself fails.
     void this.execSequence(run);
 
     return { runId, tempDir };
@@ -172,6 +175,7 @@ export class EvalManager {
   private async execSequence(run: Run) {
     try {
       const cleanResult = await this.spawnStep(run, "make", ["clean"]);
+      run.cleanChunks = cleanResult.chunks;
       if (cleanResult.code !== 0) {
         // Surface clean output only on failure.
         for (const c of cleanResult.chunks) this.emit(run, c);
@@ -199,10 +203,10 @@ export class EvalManager {
     return () => run.listeners.delete(listener);
   }
 
-  getCleanOutput(runId: string): string | null {
+  getMakeCleanOutput(runId: string): string | null {
     const run = this.runs.get(runId);
     if (!run) return null;
-    return stripAnsi(run.chunks.map((c) => c.text).join(""));
+    return stripAnsi(run.cleanChunks.map((c) => c.text).join(""));
   }
 
   getTempDir(runId: string): string | null {

@@ -115,9 +115,9 @@ export class Server {
     );
 
     app.get(
-      "/eval/:talk/:slide/:codeblockId/output/:runId/clean",
+      "/eval/:talk/:slide/:codeblockId/output/:runId/make-clean",
       (req, res) => {
-        const out = this.evalManager.getCleanOutput(req.params.runId);
+        const out = this.evalManager.getMakeCleanOutput(req.params.runId);
         if (out === null) return res.status(404).send("not found");
         res.set("Content-Type", "text/plain; charset=utf-8").send(out);
       },
