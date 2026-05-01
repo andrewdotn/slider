@@ -362,6 +362,62 @@ describe("eval", () => {
     expect(runRes.status).to.equal(400);
   });
 
+  test("shell websocket runs bash in the temp dir", async ({
+    tmpdirServer,
+  }) => {
+    const { server, tmpdir } = await tmpdirServer;
+    await setupHelloTalk(tmpdir);
+
+    const runRes = await fetch(`${server.url}/eval/demo/intro/cb1/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ src: "hello/hello.c" }),
+    });
+    const { runId, tempDir } = await runRes.json();
+    await readSse(`${server.url}/eval/demo/intro/cb1/output/${runId}`);
+
+    const wsUrl = server.url.replace(/^http/, "ws") +
+      `/eval/demo/intro/cb1/shell/${runId}`;
+    const { WebSocket } = await import("ws");
+    const ws = new WebSocket(wsUrl);
+    let received = "";
+    await new Promise<void>((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error("ws open timeout")), 5000);
+      ws.on("open", () => {
+        clearTimeout(t);
+        resolve();
+      });
+      ws.on("error", (e) => reject(e));
+    });
+    ws.on("message", (d) => {
+      received += typeof d === "string" ? d : d.toString("utf-8");
+    });
+
+    ws.send("pwd\n");
+    ws.send("exit\n");
+
+    await new Promise<void>((resolve) => ws.on("close", () => resolve()));
+    // The pty echoes commands back; we should see the temp dir path in the
+    // accumulated output.
+    expect(received).to.contain(tempDir);
+
+    // Bad runId: server should refuse the upgrade with 404.
+    const badWs = new WebSocket(
+      server.url.replace(/^http/, "ws") + "/eval/demo/intro/cb1/shell/nope",
+    );
+    const badResult = await new Promise<string>((resolve) => {
+      badWs.on("error", (e) => resolve(`error:${(e as Error).message}`));
+      badWs.on("open", () => resolve("opened"));
+      setTimeout(() => resolve("timeout"), 3000);
+    });
+    expect(badResult.startsWith("error:")).to.equal(true);
+    try {
+      badWs.close();
+    } catch {
+      // ignore
+    }
+  });
+
   test("close removes temp-eval dir", async ({ tmpdir }) => {
     const { Server } = await import("./server.ts");
     const server = new Server({ baseDir: tmpdir, isTest: true });

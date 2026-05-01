@@ -1,3 +1,32 @@
+@font-face {
+  font-family: "Ubuntu Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ubuntu-mono/ubuntu-mono-regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Ubuntu Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/ubuntu-mono/ubuntu-mono-bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Ubuntu Mono";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ubuntu-mono/ubuntu-mono-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Ubuntu Mono";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/ubuntu-mono/ubuntu-mono-bold-italic.woff2") format("woff2");
+}
+
 /* Slide dimensions — adjust these to change the slide size and aspect ratio.
  * The slide scales to fill the viewport while preserving this aspect ratio.
  * Some examples:
@@ -161,7 +190,7 @@ pre code > span.hl {
   overflow: hidden;
   background: rgb(240, 240, 240);
   border: 1px solid rgb(224, 224, 224);
-  font-family: "Droid Sans Mono", "Courier New", monospace;
+  font-family: "Ubuntu Mono", "Courier New", monospace;
   font-size: 18px;
   line-height: 24px;
   letter-spacing: -1px;
@@ -283,7 +312,7 @@ pre code > span.hl {
   overflow: auto;
   font-size: 12px;
   line-height: 1.2;
-  font-family: "Droid Sans Mono", "Courier New", monospace;
+  font-family: "Ubuntu Mono", "Courier New", monospace;
   white-space: pre-wrap;
   background: #202020;
   color: #e6e6e6;
@@ -291,4 +320,21 @@ pre code > span.hl {
   border: none;
   border-bottom-left-radius: 10px;
   border-bottom-right-radius: 10px;
+}
+
+.file-excerpt-shell {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 6px;
+  background: #000;
+  overflow: hidden;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.file-excerpt-shell .xterm,
+.file-excerpt-shell .xterm-viewport,
+.file-excerpt-shell .xterm-screen {
+  height: 100% !important;
+  width: 100% !important;
 }

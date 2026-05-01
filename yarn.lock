@@ -857,6 +857,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/ws@npm:^8.18.1":
+  version: 8.18.1
+  resolution: "@types/ws@npm:8.18.1"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/61aff1129143fcc4312f083bc9e9e168aa3026b7dd6e70796276dcfb2c8211c4292603f9c4864fae702f2ed86e4abd4d38aa421831c2fd7f856c931a481afbab
+  languageName: node
+  linkType: hard
+
 "@types/yargs-parser@npm:*":
   version: 21.0.3
   resolution: "@types/yargs-parser@npm:21.0.3"
@@ -1093,6 +1102,20 @@ __metadata:
     convert-source-map: "npm:^2.0.0"
     tinyrainbow: "npm:^3.1.0"
   checksum: 10c0/72409717e68018e5fe42fa173cc4eff6def8c35bd52013f86ddb414cd28d73fcc425ac62968e01a52371b3fd5a7a775536283d2f1d64432753f628712a6a4908
+  languageName: node
+  linkType: hard
+
+"@xterm/addon-fit@npm:^0.11.0":
+  version: 0.11.0
+  resolution: "@xterm/addon-fit@npm:0.11.0"
+  checksum: 10c0/c0ce94f7e877d07e7197d15d041cc629ce2e853016400aadddc9810838ea8a26e836f87f325eba36df88c03feb72d9f13cd8c3bb41ee31e701f1058edb8553c3
+  languageName: node
+  linkType: hard
+
+"@xterm/xterm@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "@xterm/xterm@npm:6.0.0"
+  checksum: 10c0/b99122553f323a65b708e5eba9903d4c5a1bcb59fe576d29d6e91a33002bccfd1b99403e1e839e1942f4952039db6d3d74ca9d65ed0399b4e9a0a5f35b8c12d9
   languageName: node
   linkType: hard
 
@@ -3338,11 +3361,14 @@ __metadata:
     "@types/node": "npm:^25.6.0"
     "@types/react": "npm:^19.2.14"
     "@types/react-dom": "npm:^19.2.3"
+    "@types/ws": "npm:^8.18.1"
     "@types/yargs": "npm:^17.0.35"
     "@typescript/native-preview": "npm:7.0.0-dev.20260421.2"
     "@vitejs/plugin-react": "npm:^6.0.1"
     "@vitest/browser": "npm:4.1.5"
     "@vitest/browser-playwright": "npm:4.1.5"
+    "@xterm/addon-fit": "npm:^0.11.0"
+    "@xterm/xterm": "npm:^6.0.0"
     codemirror: "npm:^6.0.2"
     express: "npm:^5.2.1"
     highlight.js: "npm:^11.11.1"
@@ -3360,6 +3386,7 @@ __metadata:
     vite: "npm:^8.0.9"
     vitest: "npm:4.1.5"
     vitest-browser-react: "npm:^2.2.0"
+    ws: "npm:^8.20.0"
     yargs: "npm:^18.0.0"
   languageName: unknown
   linkType: soft
@@ -4122,7 +4149,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:^8.19.0":
+"ws@npm:^8.19.0, ws@npm:^8.20.0":
   version: 8.20.0
   resolution: "ws@npm:8.20.0"
   peerDependencies:

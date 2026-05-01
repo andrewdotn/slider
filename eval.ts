@@ -289,6 +289,7 @@ export class EvalManager {
     return true;
   }
 
+
   async close(): Promise<void> {
     for (const run of this.runs.values()) {
       if (run.proc) {
