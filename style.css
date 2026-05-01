@@ -50,10 +50,24 @@ pre code > span.hl {
 
 .file-excerpt {
   position: relative;
-  font-family: monospace;
+  /* Match the styling of plain <pre> code blocks (see present.css). */
+  padding: 5px 10px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  background: rgb(240, 240, 240);
+  border: 1px solid rgb(224, 224, 224);
+  font-family: "Droid Sans Mono", "Courier New", monospace;
+  font-size: 18px;
+  line-height: 24px;
+  letter-spacing: -1px;
+  color: black;
 }
 .file-excerpt-editor .cm-editor {
   background: transparent;
+}
+.file-excerpt-editor .cm-editor.cm-focused {
+  outline: none;
 }
 .file-excerpt-editor .cm-line.file-excerpt-hl {
   background: #ffff00;
