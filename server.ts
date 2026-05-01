@@ -156,6 +156,9 @@ export class Server {
         ws: this.isTest ? false : undefined,
       },
       optimizeDeps: { noDiscovery: this.isTest },
+      cacheDir: this.baseDir
+        ? path.join(this.baseDir, ".vite-cache")
+        : undefined,
       appType: "custom",
     });
     this.vite = vite;
