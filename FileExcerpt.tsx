@@ -93,6 +93,7 @@ export function FileExcerpt({
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cleanText, setCleanText] = useState<string | null>(null);
+  const [popupSize, setPopupSize] = useState({ width: 600, height: 320 });
   const esRef = useRef<EventSource | null>(null);
 
   const codeblockId = useMemo(() => codeblockIdFor(src), [src]);
@@ -259,6 +260,35 @@ export function FileExcerpt({
     }
   };
 
+  const onResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = popupSize.width;
+    const startH = popupSize.height;
+    const scaleStr = getComputedStyle(
+      document.documentElement,
+    ).getPropertyValue("--slide-scale");
+    const scale = parseFloat(scaleStr) || 1;
+    const onMove = (ev: MouseEvent) => {
+      // Handle at upper-left; popup anchored at the slide's lower-right, so
+      // dragging up-and-left grows the box up-and-left.
+      const dx = (startX - ev.clientX) / scale;
+      const dy = (startY - ev.clientY) / scale;
+      setPopupSize({
+        width: Math.max(200, Math.min(880, startW + dx)),
+        height: Math.max(80, Math.min(540, startH + dy)),
+      });
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
   const closePopup = () => {
     setPopupOpen(false);
     setMenuOpen(false);
@@ -276,7 +306,7 @@ export function FileExcerpt({
   return (
     <div className="file-excerpt">
       <div className="file-excerpt-editor" ref={editorHost} />
-      {runMethod && (
+      {runMethod && !popupOpen && (
         <button
           type="button"
           className="file-excerpt-run"
@@ -287,7 +317,15 @@ export function FileExcerpt({
         </button>
       )}
       {popupOpen && (
-        <div className="file-excerpt-popup">
+        <div
+          className="file-excerpt-popup"
+          style={{ width: popupSize.width, height: popupSize.height }}
+        >
+          <div
+            className="file-excerpt-popup-resize"
+            onMouseDown={onResizeMouseDown}
+            title="Drag to resize"
+          />
           <div className="file-excerpt-popup-header">
             <span>
               {running
@@ -296,9 +334,20 @@ export function FileExcerpt({
                 ? `done (exit ${end.exitCode ?? "?"})`
                 : "ready"}
             </span>
-            <button type="button" onClick={() => setMenuOpen((v) => !v)}>
-              Manage ▾
-            </button>
+            <div className="file-excerpt-popup-buttons">
+              <button type="button" onClick={() => setMenuOpen((v) => !v)}>
+                Manage ▾
+              </button>
+              <button
+                type="button"
+                className="file-excerpt-popup-close"
+                onClick={closePopup}
+                title="Close"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
             {menuOpen && (
               <ul className="file-excerpt-menu">
                 <li>

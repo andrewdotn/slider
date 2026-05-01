@@ -74,33 +74,68 @@ pre code > span.hl {
 }
 .file-excerpt-run {
   position: absolute;
-  top: 4px;
+  bottom: 4px;
   right: 4px;
   font-size: 12px;
   padding: 2px 8px;
   cursor: pointer;
+  z-index: 5;
 }
 .file-excerpt-popup {
-  position: absolute;
-  top: 28px;
-  right: 4px;
-  width: 60%;
-  max-height: 70%;
-  background: #fff;
-  border: 1px solid #888;
-  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+  position: fixed;
+  bottom: 30px;
+  right: 40px;
+  background: #202020;
+  color: #e6e6e6;
+  border-radius: 10px;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
   z-index: 10;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+.file-excerpt-popup-resize {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background:
+    linear-gradient(135deg, #888 0 2px, transparent 2px 4px, #888 4px 6px,
+                    transparent 6px 8px, #888 8px 10px, transparent 10px);
+  border-top-left-radius: 10px;
+  z-index: 12;
 }
 .file-excerpt-popup-header {
   position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 8px;
-  background: #eee;
+  padding: 4px 10px;
+  background: #2e2e2e;
+  color: #e6e6e6;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
   font-size: 12px;
+}
+.file-excerpt-popup-header button {
+  background: #444;
+  color: #e6e6e6;
+  border: 1px solid #555;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.file-excerpt-popup-buttons {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.file-excerpt-popup-close {
+  line-height: 1;
+  padding: 2px 6px;
 }
 .file-excerpt-menu {
   position: absolute;
@@ -109,8 +144,11 @@ pre code > span.hl {
   list-style: none;
   margin: 0;
   padding: 4px 0;
-  background: #fff;
-  border: 1px solid #888;
+  background: #2e2e2e;
+  color: #e6e6e6;
+  border: 1px solid #555;
+  border-radius: 4px;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
   z-index: 11;
 }
 .file-excerpt-menu li {
@@ -120,24 +158,32 @@ pre code > span.hl {
   width: 100%;
   text-align: left;
   background: none;
+  color: #e6e6e6;
   border: none;
+  border-radius: 0;
   padding: 4px 12px;
   cursor: pointer;
   font-size: 12px;
 }
+.file-excerpt-menu button:disabled {
+  color: #888;
+  cursor: default;
+}
 .file-excerpt-menu button:hover:not(:disabled) {
-  background: #eef;
+  background: #444;
 }
 .file-excerpt-output {
   flex: 1;
   margin: 0;
-  padding: 8px;
+  padding: 5px 10px;
   overflow: auto;
   font-size: 12px;
-  font-family: monospace;
+  font-family: "Droid Sans Mono", "Courier New", monospace;
   white-space: pre-wrap;
-  background: #111;
-  color: #eee;
+  background: #202020;
+  color: #e6e6e6;
   resize: none;
   border: none;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
 }
