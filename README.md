@@ -1,8 +1,8 @@
 # Slider
 
-A presentation tool for markdown files, built on vite's dev server and MDX,
+A presentation tool for markdown files, built on vite’s dev server and MDX,
 with output format inspired by go present and progressive-reveal features
-inspired by LaTeX's beamer.
+inspired by LaTeX’s beamer.
 
 ## Features
 
@@ -21,11 +21,18 @@ inspired by LaTeX's beamer.
     attributes, e.g., `<TableOfContents minDepth="2" maxdepth="4"/>
     to show h2/h3/h4 tags.
 
-      - There's also an optional `skipCurrentSlide={true}` option that by
+      - There’s also an optional `skipCurrentSlide={true}` option that by
         default hides table of contents slides from the table of contents.
 
   - `<Font size="80%"/>` scales the text on one slide. Helpful for code
     blocks.
+
+  - Customize syntax highlighting for indented code blocks via a comment
+    before, e.g.,
+
+         <!-- syntax: html -->
+
+            hello <b>world</b>
 
   - Highlighting inside code blocks -- end a line with `//HL` or `#HL` to
     have the background appear bright yellow. Repeat the `HL` bit for lines
@@ -88,6 +95,9 @@ slides on the internet (yet?).
 
   - `present.css` is mostly borrowed from go present, put all CSS changes into
     `style.css` instead.
+
+  - Syntax highlighting is a bit complicated because CodeMirror, used for
+    editable code blocks, doesn’t support as many languages as we’d like.
 
 Original specs for some previously-implemented features are in the `specs`
 folder.

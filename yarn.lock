@@ -1968,6 +1968,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"highlight.js@npm:^11.11.1":
+  version: 11.11.1
+  resolution: "highlight.js@npm:11.11.1"
+  checksum: 10c0/40f53ac19dac079891fcefd5bd8a21cf2e8931fd47da5bd1dca73b7e4375c1defed0636fc39120c639b9c44119b7d110f7f0c15aa899557a5a1c8910f3c0144c
+  languageName: node
+  linkType: hard
+
 "html-encoding-sniffer@npm:^6.0.0":
   version: 6.0.0
   resolution: "html-encoding-sniffer@npm:6.0.0"
@@ -3338,6 +3345,7 @@ __metadata:
     "@vitest/browser-playwright": "npm:4.1.5"
     codemirror: "npm:^6.0.2"
     express: "npm:^5.2.1"
+    highlight.js: "npm:^11.11.1"
     jsdom: "npm:^29.0.2"
     morgan: "npm:^1.10.1"
     playwright: "npm:^1.59.1"

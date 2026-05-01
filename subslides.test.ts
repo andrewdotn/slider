@@ -172,4 +172,17 @@ Here:
     const src = "```\nx = 1\n```\n";
     expect(normalizeIndentedCode(src)).toBe(src);
   });
+
+  it("applies a preceding <!-- syntax: ... --> comment as the fence lang", () => {
+    const src = `# Code
+
+<!-- syntax: html -->
+
+    hello <b>world</b>
+`;
+    const out = normalizeIndentedCode(src);
+    expect(out).toContain("```html");
+    expect(out).toContain("hello <b>world</b>");
+    expect(out).not.toContain("<!-- syntax: html -->");
+  });
 });
