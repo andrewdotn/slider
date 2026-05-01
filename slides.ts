@@ -28,7 +28,9 @@ export function parseTalk(markdown: string): Slide[] {
   let currentContent: string[] = [];
   let currentSlug = "";
   let currentLevel = 1;
+  let baseSlug = "";
   const slugCounts = new Map<string, number>();
+  const breakRe = /^\s*<Break\s*\/>\s*$/;
 
   function dedupeSlug(slug: string): string {
     if (slug === "") return slug;
@@ -51,11 +53,23 @@ export function parseTalk(markdown: string): Slide[] {
       currentLevel = headingMatch[1].length;
       if (slides.length === 0 && headingMatch[1] === "#") {
         currentSlug = "";
+        baseSlug = "";
         currentContent = [line];
       } else {
-        currentSlug = dedupeSlug(slugify(title));
+        baseSlug = slugify(title);
+        currentSlug = dedupeSlug(baseSlug);
         currentContent = [line];
       }
+    } else if (breakRe.test(line)) {
+      if (currentContent.length > 0 || slides.length > 0) {
+        slides.push({
+          slug: currentSlug,
+          content: currentContent.join("\n"),
+          level: currentLevel,
+        });
+      }
+      currentSlug = dedupeSlug(baseSlug || "slide");
+      currentContent = [];
     } else {
       currentContent.push(line);
     }

@@ -8,7 +8,7 @@ inspired by LaTeX's beamer.
 
   - Live reload when markdown files are changed on disk
 
-  - A new slide is created for content below each h1/h2
+  - A new slide is created for content below each h1/h2, or on `<Break/>`
 
   - Progressive reveal tags in the markdown input:
 

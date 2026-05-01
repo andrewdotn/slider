@@ -44,6 +44,62 @@ Second summary`;
     expect(slugs).toEqual(["", "summary", "details", "summary-2"]);
   });
 
+  it("starts a new slide on <Break/>", () => {
+    const md = `# Talk
+
+## Summary
+
+First half
+
+<Break/>
+
+Second half`;
+
+    const slides = parseTalk(md);
+    expect(slides).toHaveLength(3);
+    expect(slides[1].slug).toBe("summary");
+    expect(slides[1].content).toContain("First half");
+    expect(slides[1].content).not.toContain("<Break/>");
+    expect(slides[2].slug).toBe("summary-2");
+    expect(slides[2].content).toContain("Second half");
+    expect(slides[2].level).toBe(slides[1].level);
+  });
+
+  it("supports multiple <Break/> tags within one section", () => {
+    const md = `# Talk
+
+## Intro
+
+a
+
+<Break/>
+
+b
+
+<Break/>
+
+c`;
+
+    const slides = parseTalk(md);
+    expect(slides.map((s) => s.slug)).toEqual([
+      "",
+      "intro",
+      "intro-2",
+      "intro-3",
+    ]);
+  });
+
+  it("uses 'slide' as fallback slug when <Break/> appears before any heading", () => {
+    const md = `intro paragraph
+
+<Break/>
+
+after`;
+
+    const slides = parseTalk(md);
+    expect(slides.map((s) => s.slug)).toEqual(["", "slide"]);
+  });
+
   it("handles three duplicate titles", () => {
     const md = `# Talk
 
