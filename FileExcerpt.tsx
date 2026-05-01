@@ -8,7 +8,7 @@ import { go } from "@codemirror/lang-go";
 import { python } from "@codemirror/lang-python";
 import { javascript } from "@codemirror/lang-javascript";
 import { Terminal } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
+import { CanvasAddon } from "@xterm/addon-canvas";
 import "@xterm/xterm/css/xterm.css";
 
 function languageForExt(src: string): Extension | null {
@@ -118,6 +118,38 @@ function renderWithTimestamps(
 // so edits survive slide navigation within the SPA. A page reload clears it.
 const editedCache = new Map<string, string>();
 
+// FitAddon under-fills when the host is inside a CSS scale() transform.
+// We use xterm's own cellWidth (so the rendered screen width matches
+// cols * cellWidth exactly) but divide the host's getComputedStyle width
+// (CSS pixels), bypassing the bookkeeping that loses CSS pixels to
+// xterm-internal padding the FitAddon subtracts conservatively.
+function customFit(term: Terminal, host: HTMLElement) {
+  const core = (term as unknown as { _core?: any })._core;
+  const cell = core?._renderService?.dimensions?.css?.cell;
+  if (!cell?.width || !cell?.height) return;
+
+  const cs = getComputedStyle(host);
+  const hostW = parseFloat(cs.width);
+  const hostH = parseFloat(cs.height);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const availW =
+    (cs.boxSizing === "border-box" ? hostW - padX : hostW);
+  const availH =
+    (cs.boxSizing === "border-box" ? hostH - padY : hostH);
+  if (!(availW > 0) || !(availH > 0)) return;
+
+  const cols = Math.max(2, Math.floor(availW / cell.width));
+  const rows = Math.max(1, Math.floor(availH / cell.height));
+  if (cols !== term.cols || rows !== term.rows) {
+    try {
+      term.resize(cols, rows);
+    } catch {
+      // ignore
+    }
+  }
+}
+
 function ShellTerminal({
   talk,
   slideSeg,
@@ -135,72 +167,108 @@ function ShellTerminal({
 }) {
   const host = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
 
   useEffect(() => {
     if (!host.current) return;
-    const term = new Terminal({
-      fontFamily: '"Ubuntu Mono", "Courier New", monospace',
-      fontSize: 12,
-      cursorBlink: true,
-      convertEol: false,
-    });
-    const fit = new FitAddon();
-    term.loadAddon(fit);
-    term.open(host.current);
-    fit.fit();
-    termRef.current = term;
-    fitRef.current = fit;
+    let cancelled = false;
+    let term: Terminal | null = null;
+    let ws: WebSocket | null = null;
+    let dataDispose: (() => void) | null = null;
 
-    const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(
-      `${proto}//${location.host}/eval/${talk}/${slideSeg}/${codeblockId}/shell/${runId}`,
-    );
-    wsRef.current = ws;
-    ws.binaryType = "arraybuffer";
-    ws.onopen = () => {
-      const { cols, rows } = term;
-      ws.send(`\x1b[8;${rows};${cols}t`);
-      term.focus();
-    };
-    ws.onmessage = (ev) => {
-      if (typeof ev.data === "string") term.write(ev.data);
-      else term.write(new Uint8Array(ev.data));
-    };
-    ws.onclose = () => {
-      onExitRef.current();
-    };
-    const dataDisp = term.onData((d) => {
-      if (ws.readyState === WebSocket.OPEN) ws.send(d);
+    // xterm measures cell width at open() and caches it. If we open before
+    // Ubuntu Mono is loaded, xterm uses the fallback's narrower metrics and
+    // the rightmost columns clip once the real font swaps in. Wait for the
+    // font first.
+    const fontsApi = (document as unknown as { fonts?: FontFaceSet }).fonts;
+    const fontReady: Promise<unknown> = fontsApi?.load
+      ? fontsApi.load('12px "Ubuntu Mono"').catch(() => undefined)
+      : Promise.resolve();
+
+    fontReady.then(() => {
+      if (cancelled || !host.current) return;
+      term = new Terminal({
+        fontFamily: '"Ubuntu Mono", "Courier New", monospace',
+        fontSize: 12,
+        cursorBlink: true,
+        convertEol: false,
+      });
+      term.open(host.current);
+      // Canvas renderer paints glyphs at exact cell coordinates, avoiding
+      // the DOM renderer's natural-text-flow overflow when xterm's rounded
+      // cellWidth doesn't match the font's actual glyph width.
+      try {
+        term.loadAddon(new CanvasAddon());
+      } catch {
+        // ignore — fall back to DOM renderer
+      }
+      customFit(term, host.current);
+      termRef.current = term;
+
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      ws = new WebSocket(
+        `${proto}//${location.host}/eval/${talk}/${slideSeg}/${codeblockId}/shell/${runId}`,
+      );
+      wsRef.current = ws;
+      ws.binaryType = "arraybuffer";
+      ws.onopen = () => {
+        if (!term || !ws) return;
+        const { cols, rows } = term;
+        ws.send(`\x1b[8;${rows};${cols}t`);
+        term.focus();
+      };
+      ws.onmessage = (ev) => {
+        if (!term) return;
+        if (typeof ev.data === "string") term.write(ev.data);
+        else term.write(new Uint8Array(ev.data));
+      };
+      ws.onclose = () => {
+        onExitRef.current();
+      };
+      const disp = term.onData((d) => {
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(d);
+      });
+      dataDispose = () => disp.dispose();
     });
 
     return () => {
-      dataDisp.dispose();
+      cancelled = true;
       try {
-        ws.close();
+        dataDispose?.();
       } catch {
         // ignore
       }
-      term.dispose();
+      if (ws) {
+        // Drop handlers first so the close doesn't re-enter onExit during
+        // unmount.
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onclose = null;
+        ws.onerror = null;
+        try {
+          ws.close();
+        } catch {
+          // ignore
+        }
+      }
+      try {
+        term?.dispose();
+      } catch {
+        // ignore — canvas/webgl addons can throw during teardown
+      }
       termRef.current = null;
-      fitRef.current = null;
       wsRef.current = null;
     };
   }, [talk, slideSeg, codeblockId, runId]);
 
   useEffect(() => {
-    const fit = fitRef.current;
     const term = termRef.current;
     const ws = wsRef.current;
-    if (!fit || !term) return;
-    try {
-      fit.fit();
-    } catch {
-      // ignore
-    }
+    const h = host.current;
+    if (!term || !h) return;
+    customFit(term, h);
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(`\x1b[8;${term.rows};${term.cols}t`);
     }

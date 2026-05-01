@@ -1,5 +1,6 @@
-import { describe, expect } from "vitest";
+import { describe, expect, test as plainTest } from "vitest";
 import { test as baseTest } from "./server.test.ts";
+import { detectStdbuf } from "./eval.ts";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
@@ -73,6 +74,14 @@ async function readSse(
 }
 
 describe("eval", () => {
+  // Sanity: stdbuf must be installed on the dev host, otherwise the eval
+  // streaming behavior degrades (see: "warns on first line when stdbuf is
+  // unavailable") and downstream timing tests get flaky. Catch a missing
+  // install up front instead of debugging confusing buffering symptoms.
+  plainTest("stdbuf is detected on this host", () => {
+    expect(detectStdbuf()).to.equal(true);
+  });
+
   test("runs make and streams output", async ({ tmpdirServer }) => {
     const { server, tmpdir } = await tmpdirServer;
     await setupHelloTalk(tmpdir);
@@ -459,7 +468,8 @@ describe("eval", () => {
     await fs.writeFile(path.join(ansiDir, "x.txt"), "x");
     await fs.writeFile(
       path.join(ansiDir, "Makefile"),
-      "all:\n\t@echo built\nclean:\n\t@printf '\\x1b[31mcleaning\\x1b[0m done\\n'\n",
+      // Use octal `\033` for ESC; macOS `printf` doesn't honor `\xNN`.
+      "all:\n\t@echo built\nclean:\n\t@printf '\\033[31mcleaning\\033[0m done\\n'\n",
     );
 
     const runRes = await fetch(

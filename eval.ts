@@ -2,10 +2,12 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-// Force make etc to stream output if possible
-function detectStdbuf(): boolean {
+// Force make etc to stream output if possible. Probe with `stdbuf -oL true`,
+// which works on both GNU coreutils (Linux) and BSD stdbuf (macOS); the
+// older `--help` probe exits 1 on BSD which has no long options.
+export function detectStdbuf(): boolean {
   try {
-    const r = spawnSync("stdbuf", ["--help"], { stdio: "ignore" });
+    const r = spawnSync("stdbuf", ["-oL", "true"], { stdio: "ignore" });
     return r.status === 0;
   } catch {
     return false;

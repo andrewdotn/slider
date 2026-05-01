@@ -15,7 +15,29 @@ import morgan from "morgan";
 import { watch, type FSWatcher } from "node:fs";
 import { EvalManager } from "./eval.ts";
 import { WebSocketServer } from "ws";
-import { spawn as childSpawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import * as pty from "node-pty";
+import { chmodSync } from "node:fs";
+import { createRequire } from "node:module";
+
+// yarn 4's deterministic archives strip the +x bit from prebuild binaries,
+// so node-pty's `spawn-helper` is shipped non-executable. Restore it once at
+// import time before any pty.spawn() runs.
+{
+  const require = createRequire(import.meta.url);
+  const ptyDir = path.dirname(require.resolve("node-pty/package.json"));
+  const helper = path.join(
+    ptyDir,
+    "prebuilds",
+    `${process.platform}-${process.arch}`,
+    "spawn-helper",
+  );
+  try {
+    chmodSync(helper, 0o755);
+  } catch {
+    // Windows has no spawn-helper, and on platforms missing the prebuild
+    // node-pty will surface the error itself.
+  }
+}
 
 function pickFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -34,17 +56,6 @@ function pickFreePort(): Promise<number> {
   });
 }
 
-export function scriptArgs(platform: NodeJS.Platform): string[] {
-  // BSD `script` (macOS) takes `script [-Fq] file [command ...]`; it has
-  // no -c flag and no -e flag. -F flushes after each write.
-  if (platform === "darwin") {
-    return ["-Fq", "/dev/null", "bash", "--login"];
-  }
-  // util-linux `script`: -q quiet, -f flush, -e propagate exit status,
-  // -c CMD run a command. Typescript log goes to /dev/null.
-  return ["-qfec", "bash --login", "/dev/null"];
-}
-
 export class Server {
   app: Express;
   vite?: ViteDevServer;
@@ -54,7 +65,7 @@ export class Server {
   private sseClients = new Set<express.Response>();
   private evalManager: EvalManager;
   private wss?: WebSocketServer;
-  private ptys = new Set<ChildProcessWithoutNullStreams>();
+  private ptys = new Set<pty.IPty>();
 
   private isTest: boolean;
 
@@ -307,48 +318,23 @@ export class Server {
         return;
       }
       wss.handleUpgrade(req, socket, head, (ws) => {
-        // Use `script` to allocate a pty for bash without needing a native
-        // node-pty binding. The util-linux and BSD/macOS variants take
-        // incompatible argv: util-linux is `script [opts] [file] [-c cmd]`
-        // while BSD is `script [opts] file [command ...]`.
-        const args = scriptArgs(process.platform);
-        const pty = childSpawn(
-          "script",
-          args,
-          {
-            cwd,
-            env: {
-              ...process.env,
-              TERM: "xterm-256color",
-              COLUMNS: "80",
-              LINES: "24",
-            },
-            stdio: ["pipe", "pipe", "pipe"],
-          },
-        );
-        // If `script` exits or the pty is torn down while the websocket is
-        // still open, subsequent writes to stdin produce EPIPE. Without a
-        // listener node turns it into an unhandled 'error' and crashes the
-        // whole process.
-        pty.stdin.on("error", () => {});
-        pty.on("error", () => {});
-        this.ptys.add(pty);
-        pty.stdout.on("data", (d: Buffer) => {
+        const term = pty.spawn("bash", ["--login"], {
+          name: "xterm-256color",
+          cols: 80,
+          rows: 24,
+          cwd,
+          env: { ...process.env } as Record<string, string>,
+        });
+        this.ptys.add(term);
+        term.onData((d: string) => {
           try {
             ws.send(d);
           } catch {
             // ignore
           }
         });
-        pty.stderr.on("data", (d: Buffer) => {
-          try {
-            ws.send(d);
-          } catch {
-            // ignore
-          }
-        });
-        pty.on("exit", () => {
-          this.ptys.delete(pty);
+        term.onExit(() => {
+          this.ptys.delete(term);
           try {
             ws.close();
           } catch {
@@ -362,23 +348,25 @@ export class Server {
           if (text.startsWith("\x1b[8;")) {
             const m = /^\x1b\[8;(\d+);(\d+)t/.exec(text);
             if (m) {
-              // Resize the controlling tty from inside the shell. `stty
-              // size` writes "rows cols", so use that order.
               const rows = parseInt(m[1], 10);
               const cols = parseInt(m[2], 10);
-              pty.stdin.write(`stty rows ${rows} cols ${cols}\n`);
+              try {
+                term.resize(cols, rows);
+              } catch {
+                // ignore
+              }
               return;
             }
           }
-          pty.stdin.write(text);
+          term.write(text);
         });
         ws.on("close", () => {
           try {
-            pty.kill("SIGHUP");
+            term.kill("SIGHUP");
           } catch {
             // ignore
           }
-          this.ptys.delete(pty);
+          this.ptys.delete(term);
         });
       });
     });
@@ -426,9 +414,9 @@ export class Server {
     if (watcher) {
       watcher.close();
     }
-    for (const pty of this.ptys) {
+    for (const term of this.ptys) {
       try {
-        pty.kill("SIGHUP");
+        term.kill("SIGHUP");
       } catch {
         // ignore
       }

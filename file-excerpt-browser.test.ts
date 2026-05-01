@@ -4,6 +4,11 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { chromium } from "playwright";
 
+// CodeMirror's defaultKeymap binds Mod-a (Cmd on macOS, Ctrl elsewhere) to
+// selectAll, while Ctrl-a on macOS is bound to cursorLineStart. Pick the
+// modifier that matches the host the chromium browser inherits.
+const selectAllShortcut = process.platform === "darwin" ? "Meta+A" : "Control+A";
+
 async function waitForText(
   page: import("playwright").Page,
   selector: string,
@@ -76,7 +81,7 @@ describe("FileExcerpt end-to-end", () => {
 
         // Edit the file content via CodeMirror.
         await page.click(".cm-content");
-        await page.keyboard.press("Control+A");
+        await page.keyboard.press(selectAllShortcut);
         await page.keyboard.press("Delete");
         await page.keyboard.type('int main(){ printf("EDITED LINE\\n"); }\n');
 
@@ -166,7 +171,7 @@ describe("FileExcerpt end-to-end", () => {
 
         // Edit the file content via CodeMirror.
         await page.click(".cm-content");
-        await page.keyboard.press("Control+A");
+        await page.keyboard.press(selectAllShortcut);
         await page.keyboard.press("Delete");
         await page.keyboard.type('int main(){ printf("PERSISTED EDIT\\n"); }');
         await waitForText(page, ".cm-content", "PERSISTED EDIT");

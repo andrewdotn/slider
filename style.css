@@ -332,9 +332,17 @@ pre code > span.hl {
   border-bottom-right-radius: 10px;
 }
 
-.file-excerpt-shell .xterm,
-.file-excerpt-shell .xterm-viewport,
-.file-excerpt-shell .xterm-screen {
-  height: 100% !important;
-  width: 100% !important;
+.file-excerpt-shell .xterm {
+  height: 100%;
+  width: 100%;
+}
+
+.file-excerpt-shell .xterm-viewport {
+  scrollbar-width: none;
+}
+.file-excerpt-shell .xterm-viewport::-webkit-scrollbar {
+  display: none;
+}
+.file-excerpt-shell .xterm .xterm-scrollable-element > .scrollbar {
+  display: none !important;
 }

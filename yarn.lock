@@ -1105,10 +1105,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@xterm/addon-fit@npm:^0.11.0":
-  version: 0.11.0
-  resolution: "@xterm/addon-fit@npm:0.11.0"
-  checksum: 10c0/c0ce94f7e877d07e7197d15d041cc629ce2e853016400aadddc9810838ea8a26e836f87f325eba36df88c03feb72d9f13cd8c3bb41ee31e701f1058edb8553c3
+"@xterm/addon-canvas@npm:^0.7.0":
+  version: 0.7.0
+  resolution: "@xterm/addon-canvas@npm:0.7.0"
+  peerDependencies:
+    "@xterm/xterm": ^5.0.0
+  checksum: 10c0/b28b4e67042055432b887e20cd439e3304f1ffd25b3fab47aedfad83217d78f888e85dd9ff6f643557ec0b7649a9ec2d528ee0c50ccaf60ad07f5d68ea2beaec
   languageName: node
   linkType: hard
 
@@ -2897,6 +2899,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"node-addon-api@npm:^7.1.0":
+  version: 7.1.1
+  resolution: "node-addon-api@npm:7.1.1"
+  dependencies:
+    node-gyp: "npm:latest"
+  checksum: 10c0/fb32a206276d608037fa1bcd7e9921e177fe992fc610d098aa3128baca3c0050fc1e014fa007e9b3874cf865ddb4f5bd9f43ccb7cbbbe4efaff6a83e920b17e9
+  languageName: node
+  linkType: hard
+
 "node-gyp@npm:latest":
   version: 12.3.0
   resolution: "node-gyp@npm:12.3.0"
@@ -2914,6 +2925,16 @@ __metadata:
   bin:
     node-gyp: bin/node-gyp.js
   checksum: 10c0/9d9032b405cbe42f72a105259d9eb679376470c102df4a2dbaa51e07d59bf741dcffb85897087ea9d8318b9cabb824a8978af51508ae142f0239ae1e6a3c2329
+  languageName: node
+  linkType: hard
+
+"node-pty@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "node-pty@npm:1.1.0"
+  dependencies:
+    node-addon-api: "npm:^7.1.0"
+    node-gyp: "npm:latest"
+  checksum: 10c0/e527305263da36d554b7d2116aee6430b898675fc50e7bd82fbd762f14cb6b948fb8d997736af1f70d76bf9ffd4f5179bc1ed1d8002567dfcf3b29f039291798
   languageName: node
   linkType: hard
 
@@ -3367,13 +3388,14 @@ __metadata:
     "@vitejs/plugin-react": "npm:^6.0.1"
     "@vitest/browser": "npm:4.1.5"
     "@vitest/browser-playwright": "npm:4.1.5"
-    "@xterm/addon-fit": "npm:^0.11.0"
+    "@xterm/addon-canvas": "npm:^0.7.0"
     "@xterm/xterm": "npm:^6.0.0"
     codemirror: "npm:^6.0.2"
     express: "npm:^5.2.1"
     highlight.js: "npm:^11.11.1"
     jsdom: "npm:^29.0.2"
     morgan: "npm:^1.10.1"
+    node-pty: "npm:^1.1.0"
     playwright: "npm:^1.59.1"
     prettier: "npm:^3.8.3"
     react: "npm:^19.2.5"
