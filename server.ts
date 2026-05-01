@@ -14,6 +14,8 @@ import { parseTalk } from "./slides.ts";
 import morgan from "morgan";
 import { watch, type FSWatcher } from "node:fs";
 import { EvalManager } from "./eval.ts";
+import { WebSocketServer } from "ws";
+import { spawn as childSpawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 
 function pickFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -40,6 +42,8 @@ export class Server {
   private watcher?: FSWatcher;
   private sseClients = new Set<express.Response>();
   private evalManager: EvalManager;
+  private wss?: WebSocketServer;
+  private ptys = new Set<ChildProcessWithoutNullStreams>();
 
   private isTest: boolean;
 
@@ -79,6 +83,13 @@ export class Server {
     });
 
     app.use("/talks-static/", express.static(this.baseDir ?? "."));
+    app.use(
+      "/fonts/",
+      express.static(path.join(path.dirname(fileURLToPath(import.meta.url)), "fonts"), {
+        maxAge: "1d",
+        immutable: true,
+      }),
+    );
 
     app.post(
       "/eval/:talk/:slide/:codeblockId/run",
@@ -266,6 +277,95 @@ export class Server {
     }
   }
 
+  private _installShellWs(server: http.Server) {
+    const wss = new WebSocketServer({ noServer: true });
+    this.wss = wss;
+    const re = /^\/eval\/[^/]+\/[^/]+\/[^/]+\/shell\/([^/?]+)/;
+    server.on("upgrade", (req, socket, head) => {
+      const url = req.url ?? "";
+      const m = re.exec(url);
+      if (!m) {
+        socket.destroy();
+        return;
+      }
+      const runId = decodeURIComponent(m[1]);
+      const cwd = this.evalManager.getTempDir(runId);
+      if (!cwd) {
+        socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        // Use util-linux `script` to allocate a pty for bash without
+        // needing a native node-pty binding. -q quiet, -f flush after each
+        // write, -e propagate child exit status, -c CMD run a command,
+        // and write the typescript log to /dev/null.
+        const pty = childSpawn(
+          "script",
+          ["-qfec", "bash --login", "/dev/null"],
+          {
+            cwd,
+            env: {
+              ...process.env,
+              TERM: "xterm-256color",
+              COLUMNS: "80",
+              LINES: "24",
+            },
+            stdio: ["pipe", "pipe", "pipe"],
+          },
+        );
+        this.ptys.add(pty);
+        pty.stdout.on("data", (d: Buffer) => {
+          try {
+            ws.send(d);
+          } catch {
+            // ignore
+          }
+        });
+        pty.stderr.on("data", (d: Buffer) => {
+          try {
+            ws.send(d);
+          } catch {
+            // ignore
+          }
+        });
+        pty.on("exit", () => {
+          this.ptys.delete(pty);
+          try {
+            ws.close();
+          } catch {
+            // ignore
+          }
+        });
+        ws.on("message", (data) => {
+          let text: string;
+          if (typeof data === "string") text = data;
+          else text = data.toString("utf-8");
+          if (text.startsWith("\x1b[8;")) {
+            const m = /^\x1b\[8;(\d+);(\d+)t/.exec(text);
+            if (m) {
+              // Resize the controlling tty from inside the shell. `stty
+              // size` writes "rows cols", so use that order.
+              const rows = parseInt(m[1], 10);
+              const cols = parseInt(m[2], 10);
+              pty.stdin.write(`stty rows ${rows} cols ${cols}\n`);
+              return;
+            }
+          }
+          pty.stdin.write(text);
+        });
+        ws.on("close", () => {
+          try {
+            pty.kill("SIGHUP");
+          } catch {
+            // ignore
+          }
+          this.ptys.delete(pty);
+        });
+      });
+    });
+  }
+
   async serve({
     port,
   }: {
@@ -275,6 +375,7 @@ export class Server {
     this._startWatching();
 
     const server = http.createServer(this.app);
+    this._installShellWs(server);
 
     return new Promise((resolve, reject) => {
       server.on("error", reject);
@@ -306,6 +407,18 @@ export class Server {
 
     if (watcher) {
       watcher.close();
+    }
+    for (const pty of this.ptys) {
+      try {
+        pty.kill("SIGHUP");
+      } catch {
+        // ignore
+      }
+    }
+    this.ptys.clear();
+    if (this.wss) {
+      this.wss.close();
+      this.wss = undefined;
     }
     if (listeningServer) {
       const address = listeningServer.address();

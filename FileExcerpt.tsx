@@ -7,6 +7,9 @@ import { cpp } from "@codemirror/lang-cpp";
 import { go } from "@codemirror/lang-go";
 import { python } from "@codemirror/lang-python";
 import { javascript } from "@codemirror/lang-javascript";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import "@xterm/xterm/css/xterm.css";
 
 function languageForExt(src: string): Extension | null {
   const ext = src.toLowerCase().split(".").pop() ?? "";
@@ -115,6 +118,97 @@ function renderWithTimestamps(
 // so edits survive slide navigation within the SPA. A page reload clears it.
 const editedCache = new Map<string, string>();
 
+function ShellTerminal({
+  talk,
+  slideSeg,
+  codeblockId,
+  runId,
+  size,
+  onExit,
+}: {
+  talk: string;
+  slideSeg: string;
+  codeblockId: string;
+  runId: string;
+  size: { width: number; height: number };
+  onExit: () => void;
+}) {
+  const host = useRef<HTMLDivElement | null>(null);
+  const termRef = useRef<Terminal | null>(null);
+  const fitRef = useRef<FitAddon | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const onExitRef = useRef(onExit);
+  onExitRef.current = onExit;
+
+  useEffect(() => {
+    if (!host.current) return;
+    const term = new Terminal({
+      fontFamily: '"Ubuntu Mono", "Courier New", monospace',
+      fontSize: 12,
+      cursorBlink: true,
+      convertEol: false,
+    });
+    const fit = new FitAddon();
+    term.loadAddon(fit);
+    term.open(host.current);
+    fit.fit();
+    termRef.current = term;
+    fitRef.current = fit;
+
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(
+      `${proto}//${location.host}/eval/${talk}/${slideSeg}/${codeblockId}/shell/${runId}`,
+    );
+    wsRef.current = ws;
+    ws.binaryType = "arraybuffer";
+    ws.onopen = () => {
+      const { cols, rows } = term;
+      ws.send(`\x1b[8;${rows};${cols}t`);
+      term.focus();
+    };
+    ws.onmessage = (ev) => {
+      if (typeof ev.data === "string") term.write(ev.data);
+      else term.write(new Uint8Array(ev.data));
+    };
+    ws.onclose = () => {
+      onExitRef.current();
+    };
+    const dataDisp = term.onData((d) => {
+      if (ws.readyState === WebSocket.OPEN) ws.send(d);
+    });
+
+    return () => {
+      dataDisp.dispose();
+      try {
+        ws.close();
+      } catch {
+        // ignore
+      }
+      term.dispose();
+      termRef.current = null;
+      fitRef.current = null;
+      wsRef.current = null;
+    };
+  }, [talk, slideSeg, codeblockId, runId]);
+
+  useEffect(() => {
+    const fit = fitRef.current;
+    const term = termRef.current;
+    const ws = wsRef.current;
+    if (!fit || !term) return;
+    try {
+      fit.fit();
+    } catch {
+      // ignore
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(`\x1b[8;${term.rows};${term.cols}t`);
+    }
+  }, [size.width, size.height]);
+
+  return <div className="file-excerpt-shell" ref={host} />;
+}
+
 export function FileExcerpt({
   src,
   lineHighlights = [],
@@ -136,6 +230,7 @@ export function FileExcerpt({
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cleanText, setCleanText] = useState<string | null>(null);
+  const [shellOpen, setShellOpen] = useState(false);
   const [popupSize, setPopupSize] = useState({ width: 600, height: 320 });
   const [outputFontSize, setOutputFontSize] = useState(12);
   const [showTimestamps, setShowTimestamps] = useState(false);
@@ -332,6 +427,18 @@ export function FileExcerpt({
     }
   };
 
+  const openShell = () => {
+    setMenuOpen(false);
+    if (!runId) return;
+    setCleanText(null);
+    setShellOpen(true);
+  };
+
+  const exitShell = () => {
+    setMenuOpen(false);
+    setShellOpen(false);
+  };
+
   const onResizeMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -365,6 +472,7 @@ export function FileExcerpt({
     setPopupOpen(false);
     setMenuOpen(false);
     setCleanText(null);
+    setShellOpen(false);
     if (esRef.current) {
       esRef.current.close();
       esRef.current = null;
@@ -481,6 +589,21 @@ export function FileExcerpt({
                   </button>
                 </li>
                 <li>
+                  {shellOpen ? (
+                    <button type="button" onClick={exitShell}>
+                      Hide shell
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={openShell}
+                      disabled={!runId}
+                    >
+                      Shell
+                    </button>
+                  )}
+                </li>
+                <li>
                   <button type="button" onClick={startRun}>
                     Re-run
                   </button>
@@ -498,7 +621,16 @@ export function FileExcerpt({
               </ul>
             )}
           </div>
-          {cleanText !== null ? (
+          {shellOpen && runId ? (
+            <ShellTerminal
+              talk={talk}
+              slideSeg={slideSeg}
+              codeblockId={codeblockId}
+              runId={runId}
+              size={popupSize}
+              onExit={() => setShellOpen(false)}
+            />
+          ) : cleanText !== null ? (
             <textarea
               className="file-excerpt-output"
               readOnly

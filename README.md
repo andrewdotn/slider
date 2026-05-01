@@ -45,7 +45,9 @@ inspired by LaTeX’s beamer.
 
       - `runMethod="Makefile"` makes the code block editable and runnable.
         Files in the same directory as `src` will be copied to a temporary
-        directory, where `make clean` and then `make` will run.
+        directory, where `make clean` and then `make` will run. You can
+        even spawn a shell to interact with files in the temporary
+        directory.
 
         Recent temporary files are stored in `temp-eval` until the server
         exits.
