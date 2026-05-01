@@ -178,6 +178,7 @@ pre code > span.hl {
   padding: 5px 10px;
   overflow: auto;
   font-size: 12px;
+  line-height: 1.2;
   font-family: "Droid Sans Mono", "Courier New", monospace;
   white-space: pre-wrap;
   background: #202020;
