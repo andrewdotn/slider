@@ -57,6 +57,8 @@ inspired by LaTeX’s beamer.
   - Up/down arrow keys advance by full slides, skipping over progressive-reveal
     from subslides
 
+  - `l` toggles laser pointer mode
+
   - `d` toggles debug mode, with overlays such as what syntax code blocks
     were auto-detected as
 
