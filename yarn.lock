@@ -3410,6 +3410,9 @@ __metadata:
     vitest-browser-react: "npm:^2.2.0"
     ws: "npm:^8.20.0"
     yargs: "npm:^18.0.0"
+  dependenciesMeta:
+    node-pty@1.1.0:
+      built: true
   languageName: unknown
   linkType: soft
 
