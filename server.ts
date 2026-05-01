@@ -15,7 +15,10 @@ import morgan from "morgan";
 import { watch, type FSWatcher } from "node:fs";
 import { EvalManager } from "./eval.ts";
 import { WebSocketServer } from "ws";
-import { spawn as childSpawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn as childSpawn, type ChildProcess } from "node:child_process";
+import { Writable } from "node:stream";
+
+const PTY_HELPER = fileURLToPath(new URL("./pty_helper.py", import.meta.url));
 
 function pickFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -43,7 +46,7 @@ export class Server {
   private sseClients = new Set<express.Response>();
   private evalManager: EvalManager;
   private wss?: WebSocketServer;
-  private ptys = new Set<ChildProcessWithoutNullStreams>();
+  private ptys = new Set<ChildProcess>();
 
   private isTest: boolean;
 
@@ -296,33 +299,27 @@ export class Server {
         return;
       }
       wss.handleUpgrade(req, socket, head, (ws) => {
-        // Use util-linux `script` to allocate a pty for bash without
-        // needing a native node-pty binding. -q quiet, -f flush after each
-        // write, -e propagate child exit status, -c CMD run a command,
-        // and write the typescript log to /dev/null.
-        const pty = childSpawn(
-          "script",
-          ["-qfec", "bash --login", "/dev/null"],
-          {
-            cwd,
-            env: {
-              ...process.env,
-              TERM: "xterm-256color",
-              COLUMNS: "80",
-              LINES: "24",
-            },
-            stdio: ["pipe", "pipe", "pipe"],
+        // pty_helper.py forks bash inside a real pty and exposes a side
+        // channel on FD 3 for resize commands ("rows cols\n"), which it
+        // applies via ioctl(TIOCSWINSZ).
+        const pty = childSpawn("python3", [PTY_HELPER, "bash", "--login"], {
+          cwd,
+          env: {
+            ...process.env,
+            TERM: "xterm-256color",
           },
-        );
+          stdio: ["pipe", "pipe", "pipe", "pipe"],
+        });
+        const ctrl = pty.stdio[3] as Writable | null;
         this.ptys.add(pty);
-        pty.stdout.on("data", (d: Buffer) => {
+        pty.stdout?.on("data", (d: Buffer) => {
           try {
             ws.send(d);
           } catch {
             // ignore
           }
         });
-        pty.stderr.on("data", (d: Buffer) => {
+        pty.stderr?.on("data", (d: Buffer) => {
           try {
             ws.send(d);
           } catch {
@@ -344,15 +341,17 @@ export class Server {
           if (text.startsWith("\x1b[8;")) {
             const m = /^\x1b\[8;(\d+);(\d+)t/.exec(text);
             if (m) {
-              // Resize the controlling tty from inside the shell. `stty
-              // size` writes "rows cols", so use that order.
               const rows = parseInt(m[1], 10);
               const cols = parseInt(m[2], 10);
-              pty.stdin.write(`stty rows ${rows} cols ${cols}\n`);
+              try {
+                ctrl?.write(`${rows} ${cols}\n`);
+              } catch {
+                // ignore
+              }
               return;
             }
           }
-          pty.stdin.write(text);
+          pty.stdin?.write(text);
         });
         ws.on("close", () => {
           try {
