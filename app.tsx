@@ -5,15 +5,21 @@ import { visit } from "unist-util-visit";
 import { parseTalk, slideHeading, type Slide } from "./slides.ts";
 
 // Rewrite relative image URLs in slide markdown so they resolve to the
-// /talks-static/ asset route rather than the slide page URL.
-function remarkRewriteAssetUrls() {
-  return (tree: unknown) => {
-    visit(tree as never, "image", (node: { url?: string }) => {
-      const url = node.url;
-      if (!url) return;
-      if (/^(?:[a-z][a-z0-9+.-]*:|\/|#|data:)/i.test(url)) return;
-      node.url = `/talks-static/${url}`;
-    });
+// /talks-static/ asset route rather than the slide page URL. When an asset
+// has a known version (bumped by a hot-reload event), append a cache-busting
+// query so the browser refetches the changed image.
+function makeRemarkRewriteAssetUrls(assetVersions: Map<string, number>) {
+  return function remarkRewriteAssetUrls() {
+    return (tree: unknown) => {
+      visit(tree as never, "image", (node: { url?: string }) => {
+        const url = node.url;
+        if (!url) return;
+        if (/^(?:[a-z][a-z0-9+.-]*:|\/|#|data:)/i.test(url)) return;
+        const v = assetVersions.get(url);
+        const suffix = v ? `?v=${v}` : "";
+        node.url = `/talks-static/${url}${suffix}`;
+      });
+    };
   };
 }
 import {
@@ -122,12 +128,16 @@ function useSlides(): {
   slides: Slide[];
   idx: number;
   subIdx: number;
+  assetVersions: Map<string, number>;
 } | null {
   const [data, setData] = useState<{
     talk: string;
     slides: Slide[];
     idx: number;
   } | null>(null);
+  const [assetVersions, setAssetVersions] = useState<Map<string, number>>(
+    () => new Map(),
+  );
 
   const [path, setPath] = useState(window.location.pathname);
   const [hash, setHash] = useState(window.location.hash);
@@ -179,17 +189,23 @@ function useSlides(): {
   useEffect(() => {
     const es = new EventSource("/events");
     es.onmessage = (event) => {
-      const { talk } = JSON.parse(event.data);
-      if (data && data.talk === talk) {
+      const msg = JSON.parse(event.data) as { talk?: string; asset?: string };
+      if (msg.talk && data && data.talk === msg.talk) {
         const currentSlug = data.slides[data.idx]?.slug ?? "";
-        fetchTalk(talk, currentSlug);
+        fetchTalk(msg.talk, currentSlug);
+      } else if (msg.asset) {
+        setAssetVersions((prev) => {
+          const next = new Map(prev);
+          next.set(msg.asset!, (prev.get(msg.asset!) ?? 0) + 1);
+          return next;
+        });
       }
     };
     return () => es.close();
   }, [data?.talk, data?.idx]);
 
   if (!data) return null;
-  return { ...data, subIdx: parseSubIdx(hash) };
+  return { ...data, subIdx: parseSubIdx(hash), assetVersions };
 }
 
 function SlideView({
@@ -197,11 +213,13 @@ function SlideView({
   slides,
   idx,
   subIdx,
+  assetVersions,
 }: {
   talk: string;
   slides: Slide[];
   idx: number;
   subIdx: number;
+  assetVersions: Map<string, number>;
 }) {
   const [Content, setContent] = useState<MDXContent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -234,7 +252,7 @@ function SlideView({
       try {
         const mod = await evaluate(transformed, {
           ...(runtime as any),
-          remarkPlugins: [remarkRewriteAssetUrls],
+          remarkPlugins: [makeRemarkRewriteAssetUrls(assetVersions)],
         });
         if (cancelled) return;
         setError(null);
@@ -247,7 +265,7 @@ function SlideView({
     return () => {
       cancelled = true;
     };
-  }, [slide.content, clampedSub, parseError]);
+  }, [slide.content, clampedSub, parseError, assetVersions]);
 
   const TableOfContents = useMemo(
     () =>
@@ -457,6 +475,7 @@ export function App() {
         slides={data.slides}
         idx={data.idx}
         subIdx={data.subIdx}
+        assetVersions={data.assetVersions}
       />
       <Laser active={laser} />
     </>

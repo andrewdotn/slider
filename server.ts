@@ -63,6 +63,10 @@ export class Server {
   baseDir?: string;
   private watcher?: FSWatcher;
   private sseClients = new Set<express.Response>();
+  // Tracks paths (relative to baseDir) that have been served by the
+  // /talks-static/ route. The file watcher uses this to decide which
+  // non-markdown file changes are worth broadcasting to clients.
+  private servedAssets = new Set<string>();
   private evalManager: EvalManager;
   private wss?: WebSocketServer;
   private ptys = new Set<pty.IPty>();
@@ -104,7 +108,23 @@ export class Server {
       await this.serveSlide(req, res, req.params.talk, req.params.slide);
     });
 
-    app.use("/talks-static/", express.static(this.baseDir ?? "."));
+    app.use(
+      "/talks-static/",
+      (req, res, next) => {
+        // Record any non-.md file that the static server actually served so
+        // the file watcher knows which assets to broadcast hot-reload events
+        // for. This avoids hard-coding an extension list.
+        res.on("finish", () => {
+          if (res.statusCode !== 200 && res.statusCode !== 304) return;
+          // req.path is the URL path under the mount point, decoded.
+          const rel = req.path.replace(/^\/+/, "");
+          if (!rel || rel.endsWith(".md")) return;
+          this.servedAssets.add(rel);
+        });
+        next();
+      },
+      express.static(this.baseDir ?? "."),
+    );
     app.use(
       "/fonts/",
       express.static(path.join(path.dirname(fileURLToPath(import.meta.url)), "fonts"), {
@@ -279,21 +299,32 @@ export class Server {
     // which may fire duplicate events for a single rename-into-place).
     const pending = new Map<string, ReturnType<typeof setTimeout>>();
     this.watcher = watch(dir, (eventType, filename) => {
-      if (!filename || !filename.endsWith(".md")) return;
-      const talk = filename.replace(/\.md$/, "");
-      if (pending.has(talk)) clearTimeout(pending.get(talk));
+      if (!filename) return;
+      let payload: { talk?: string; asset?: string };
+      let key: string;
+      if (filename.endsWith(".md")) {
+        const talk = filename.replace(/\.md$/, "");
+        payload = { talk };
+        key = `md:${talk}`;
+      } else if (this.servedAssets.has(filename)) {
+        payload = { asset: filename };
+        key = `asset:${filename}`;
+      } else {
+        return;
+      }
+      if (pending.has(key)) clearTimeout(pending.get(key));
       pending.set(
-        talk,
+        key,
         setTimeout(() => {
-          pending.delete(talk);
-          this._notifyClients(talk);
+          pending.delete(key);
+          this._broadcast(payload);
         }, 50),
       );
     });
   }
 
-  private _notifyClients(talk: string) {
-    const data = `data: ${JSON.stringify({ talk })}\n\n`;
+  private _broadcast(payload: object) {
+    const data = `data: ${JSON.stringify(payload)}\n\n`;
     for (const client of this.sseClients) {
       client.write(data);
     }

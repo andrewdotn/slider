@@ -6,7 +6,7 @@ inspired by LaTeX’s beamer.
 
 ## Features
 
-  - Live reload when markdown files are changed on disk
+  - Live reload when talk files are changed on disk
 
   - A new slide is created for content below each h1/h2, or on `<Break/>`
 
