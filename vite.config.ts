@@ -18,6 +18,7 @@ export default defineConfig({
             "keyboard-nav.test.tsx",
             "mdx-error.test.tsx",
             "file-excerpt.test.tsx",
+            "frame.test.tsx",
           ],
         },
       },
@@ -29,6 +30,7 @@ export default defineConfig({
             "keyboard-nav.test.tsx",
             "mdx-error.test.tsx",
             "file-excerpt.test.tsx",
+            "frame.test.tsx",
           ],
           exclude: ["**/node_modules/**", "**/.claude/**"],
           browser: {

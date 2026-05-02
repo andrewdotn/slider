@@ -39,6 +39,11 @@ inspired by LaTeX’s beamer.
     that should appear on the slide with a literal `//HL` or `#HL`. More `HL`s
     in the input toggle highlighting in the output as they add more `HL`s.
 
+  - `<Frame src="https://docs.example.com/" fallback="docs.png"/>` embeds a
+    web page. `fallback` is an optional image to show in “offline mode”
+    which is toggled via the `o` key. The URL is also shown but doesn’t
+    update during nav because security.
+
   - `<FileExcerpt src="hello/hello.c"/>` displays a file as a code block.
 
       - `lineHighlights={[/foo/]} />` will highlight
@@ -63,6 +68,9 @@ inspired by LaTeX’s beamer.
   - `l` toggles laser pointer mode
 
   - `f` toggles full screen
+
+  - `o` toggles offline mode, making `<Frame/>` show fallback images
+    instead of iframes
 
   - `d` toggles debug mode, with overlays such as what syntax code blocks
     were auto-detected as

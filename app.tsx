@@ -30,6 +30,7 @@ import {
 } from "./subslides.tsx";
 import { CodeBlock, toggleCodeBlockDebug } from "./CodeBlock.tsx";
 import { FileExcerpt } from "./FileExcerpt.tsx";
+import { Frame, toggleOfflineMode } from "./Frame.tsx";
 import { Laser } from "./Laser.tsx";
 
 type MDXContent = (props: Record<string, unknown>) => React.JSX.Element;
@@ -339,6 +340,7 @@ function SlideView({
       Font,
       pre: Pre,
       FileExcerpt: FileExcerptForSlide,
+      Frame,
     }),
     [TableOfContents, FileExcerptForSlide],
   );
@@ -458,6 +460,8 @@ export function App() {
         toggleCodeBlockDebug();
       } else if (e.key === "l" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         setLaser((v) => !v);
+      } else if (e.key === "o" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        toggleOfflineMode();
       } else if (e.key === "f" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (document.fullscreenElement) {
           document.exitFullscreen();
