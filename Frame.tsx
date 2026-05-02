@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import QRCode from "qrcode";
 
 let offline = false;
 const subs = new Set<() => void>();
@@ -40,6 +41,20 @@ const ZOOM_MAX = 4;
 export function Frame({ src, fallback }: Props) {
   const offlineMode = useOfflineMode();
   const [zoom, setZoom] = useState(1);
+  const [qrDataUrl, setQrDataUrl] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    QRCode.toDataURL(src, { margin: 1, width: 160 }).then(
+      (url) => {
+        if (!cancelled) setQrDataUrl(url);
+      },
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
   const showFallback = offlineMode;
   const fallbackUrl = fallback
     ? /^(?:[a-z][a-z0-9+.-]*:|\/|data:)/i.test(fallback)
@@ -67,6 +82,14 @@ export function Frame({ src, fallback }: Props) {
         >
           {src}
         </a>
+        {qrDataUrl ? (
+          <img
+            className="frame-qr"
+            src={qrDataUrl}
+            alt={`QR code for ${src}`}
+            title={src}
+          />
+        ) : null}
         <div className="frame-bar-buttons">
           <button
             type="button"

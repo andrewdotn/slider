@@ -379,6 +379,20 @@ pre code > span.hl {
 .frame-bar:hover {
   text-decoration: underline;
 }
+/* Frame sits at top: 90px from the slide top. The QR spans from 8px below
+ * the slide top down to ~8px above the iframe content area, overlapping
+ * the frame's title/zoom bar. Right offset clears the A+/A- buttons with
+ * an 8px gap. Square. */
+.frame-qr {
+  position: absolute;
+  top: -82px;
+  right: 80px;
+  width: 96px;
+  height: 96px;
+  background: #fff;
+  z-index: 5;
+  display: block;
+}
 .frame-bar-buttons {
   flex: 0 0 auto;
   display: flex;

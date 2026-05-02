@@ -39,6 +39,18 @@ describe("Frame", () => {
     );
   });
 
+  it("renders a QR code for the frame's source URL", async () => {
+    window.history.pushState({}, "", "/talks/sample-talk1/");
+    await render(<App />);
+
+    await expect
+      .poll(() => document.querySelector("img.frame-qr"))
+      .not.toBeNull();
+    const qr = document.querySelector("img.frame-qr") as HTMLImageElement;
+    expect(qr.getAttribute("src") ?? "").toMatch(/^data:image\/png/);
+    expect(qr.getAttribute("alt")).toContain("https://example.org/");
+  });
+
   it("shows the fallback image when offline mode is on", async () => {
     window.history.pushState({}, "", "/talks/sample-talk1/");
     await render(<App />);
