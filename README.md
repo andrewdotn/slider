@@ -47,7 +47,8 @@ inspired by LaTeX’s beamer.
         Files in the same directory as `src` will be copied to a temporary
         directory, where `make clean` and then `make` will run. You can
         even spawn a shell to interact with files in the temporary
-        directory.
+        directory. (Add `makefileName="Makefile.foo"` to select among
+        different Makefiles in the same directory.)
 
         Recent temporary files are stored in `temp-eval` until the server
         exits.

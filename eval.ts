@@ -31,6 +31,7 @@ export type RunRequest = {
   codeblockId: string;
   src: string;
   files?: Record<string, string>;
+  makefileName?: string;
 };
 
 type OutputChunk = { stream: "stdout" | "stderr"; text: string; t: number };
@@ -56,6 +57,7 @@ type Run = {
   exited: EndEvent | null;
   listeners: Set<Listener>;
   startedAt: number;
+  makefileName?: string;
 };
 
 const ANSI_RE =
@@ -105,12 +107,15 @@ export class EvalManager {
   }
 
   async run(req: RunRequest): Promise<{ runId: string; tempDir: string }> {
-    const { talk, slide, codeblockId, src, files = {} } = req;
+    const { talk, slide, codeblockId, src, files = {}, makefileName } = req;
     if (!isSafeSegment(talk) || !isSafeSegment(codeblockId)) {
       throw new Error("invalid talk or codeblockId");
     }
     const slideSeg = slide === "" ? "_" : slide;
     if (!isSafeSegment(slideSeg)) throw new Error("invalid slide");
+    if (makefileName !== undefined && !isSafeSegment(makefileName)) {
+      throw new Error("invalid makefileName");
+    }
 
     const absSrc = this.resolveSrc(talk, src);
     if (!absSrc) throw new Error("src escapes baseDir");
@@ -150,6 +155,7 @@ export class EvalManager {
       exited: null,
       listeners: new Set(),
       startedAt: Date.now(),
+      makefileName,
     };
     this.runs.set(runId, run);
 
@@ -230,7 +236,8 @@ export class EvalManager {
           t: Date.now(),
         });
       }
-      const cleanResult = await this.spawnStep(run, "make", ["clean"], hasStdbuf);
+      const fFlag = run.makefileName ? ["-f", run.makefileName] : [];
+      const cleanResult = await this.spawnStep(run, "make", [...fFlag, "clean"], hasStdbuf);
       run.cleanChunks = cleanResult.chunks;
       if (cleanResult.code !== 0) {
         // Surface clean output only on failure.
@@ -242,7 +249,7 @@ export class EvalManager {
         });
         return;
       }
-      const buildResult = await this.spawnStep(run, "make", [], hasStdbuf, { live: true });
+      const buildResult = await this.spawnStep(run, "make", fFlag, hasStdbuf, { live: true });
       this.finish(run, {
         exitCode: buildResult.code,
         signal: buildResult.signal,

@@ -362,6 +362,7 @@ function SlideView({
                   src: string;
                   lineHighlights?: RegExp[];
                   runMethod?: "Makefile";
+                  makefileName?: string;
                 }) => (
                   <FileExcerpt
                     {...props}

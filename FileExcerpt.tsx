@@ -58,6 +58,7 @@ type Props = {
   src: string;
   lineHighlights?: RegExp[];
   runMethod?: "Makefile";
+  makefileName?: string;
   talk: string;
   slideSlug: string;
 };
@@ -306,6 +307,7 @@ export function FileExcerpt({
   src,
   lineHighlights = [],
   runMethod,
+  makefileName,
   talk,
   slideSlug,
 }: Props) {
@@ -427,6 +429,7 @@ export function FileExcerpt({
     const body = {
       src,
       files: { [fileName]: text },
+      makefileName,
     };
     let r: Response;
     try {

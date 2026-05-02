@@ -138,12 +138,15 @@ export class Server {
       async (req, res) => {
         try {
           const { talk, slide, codeblockId } = req.params;
-          const { src, files } = req.body ?? {};
+          const { src, files, makefileName } = req.body ?? {};
           if (typeof src !== "string") {
             return res.status(400).json({ error: "src required" });
           }
           if (!this.evalManager.resolveSrc(talk, src)) {
             return res.status(400).json({ error: "invalid src" });
+          }
+          if (makefileName !== undefined && typeof makefileName !== "string") {
+            return res.status(400).json({ error: "invalid makefileName" });
           }
           const result = await this.evalManager.run({
             talk,
@@ -151,6 +154,7 @@ export class Server {
             codeblockId,
             src,
             files: files ?? {},
+            makefileName,
           });
           res.json(result);
         } catch (err) {
