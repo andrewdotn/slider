@@ -103,6 +103,20 @@ describe("Keyboard Navigation", () => {
     expect(document.querySelector('[data-testid="laser-overlay"]')).toBeNull();
   });
 
+  it("laser overlay captures pointer events so it tracks above iframes", async () => {
+    window.history.pushState({}, "", "/talks/sample-talk1/");
+    const screen = await render(<App />);
+
+    await expect.element(screen.getByText("Slide 1")).toBeVisible();
+    await userEvent.keyboard("l");
+
+    const overlay = document.querySelector(
+      '[data-testid="laser-overlay"]',
+    ) as HTMLElement | null;
+    expect(overlay).not.toBeNull();
+    expect(overlay!.style.pointerEvents).toBe("auto");
+  });
+
   it("toggles fullscreen on 'f'", async () => {
     window.history.pushState({}, "", "/talks/sample-talk1/");
     const screen = await render(<App />);

@@ -178,7 +178,10 @@ export function Laser({ active }: { active: boolean }) {
         inset: 0,
         width: "100vw",
         height: "100vh",
-        pointerEvents: "none",
+        // Capture pointer events so mousemove still fires when the cursor is
+        // over a cross-origin <Frame/> iframe — otherwise the iframe swallows
+        // events and the laser freezes above it.
+        pointerEvents: "auto",
         zIndex: 99999,
       }}
     />
