@@ -325,7 +325,7 @@ export function FileExcerpt({
   const [cleanText, setCleanText] = useState<string | null>(null);
   const [shellOpen, setShellOpen] = useState(false);
   const [popupSize, setPopupSize] = useState({ width: 600, height: 320 });
-  const [outputFontSize, setOutputFontSize] = useState(12);
+  const [outputFontSize, setOutputFontSize] = useState(14);
   const [showTimestamps, setShowTimestamps] = useState(false);
   const [runStartT, setRunStartT] = useState<number | null>(null);
   const [, setTick] = useState(0);
