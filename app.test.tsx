@@ -8,6 +8,7 @@ import {
   normalizeIndentedCode,
   transformForSubSlide,
 } from "./subslides.tsx";
+import { remarkAutolinkBareUrls } from "./remark-autolink-bare-urls.ts";
 
 async function renderMdx(mdx: string, subIdx: number = 1): Promise<string> {
   const transformed = transformForSubSlide(
@@ -16,6 +17,7 @@ async function renderMdx(mdx: string, subIdx: number = 1): Promise<string> {
   );
   const { default: Content } = await evaluate(transformed, {
     ...(runtime as any),
+    remarkPlugins: [remarkAutolinkBareUrls],
   });
   return renderToStaticMarkup(<Content components={{}} />);
 }
@@ -68,6 +70,32 @@ describe("MDX rendering", () => {
     expect(html1).not.toContain("later");
     const html2 = await renderMdx(src, 2);
     expect(html2).toContain("later");
+  });
+
+  it("autolinks bare http(s) URLs in paragraph text", async () => {
+    const html = await renderMdx(
+      "See https://docs.python.org/3/c-api/index.html for details.",
+    );
+    expect(html).toContain(
+      '<a href="https://docs.python.org/3/c-api/index.html">https://docs.python.org/3/c-api/index.html</a>',
+    );
+    expect(html).toContain("See ");
+    expect(html).toContain(" for details.");
+  });
+
+  it("excludes trailing sentence punctuation from autolinks", async () => {
+    const html = await renderMdx("Visit https://example.com.");
+    expect(html).toContain(
+      '<a href="https://example.com">https://example.com</a>.',
+    );
+  });
+
+  it("does not double-link URLs already inside markdown links", async () => {
+    const html = await renderMdx("[docs](https://example.com)");
+    // Only one <a> tag should appear.
+    const matches = html.match(/<a /g) ?? [];
+    expect(matches.length).to.equal(1);
+    expect(html).toContain('href="https://example.com"');
   });
 
   it("preserves curly braces in indented code blocks", async () => {

@@ -22,6 +22,7 @@ function makeRemarkRewriteAssetUrls(assetVersions: Map<string, number>) {
     };
   };
 }
+import { remarkAutolinkBareUrls } from "./remark-autolink-bare-urls.ts";
 import {
   countSubSlides,
   normalizeIndentedCode,
@@ -252,7 +253,10 @@ function SlideView({
       try {
         const mod = await evaluate(transformed, {
           ...(runtime as any),
-          remarkPlugins: [makeRemarkRewriteAssetUrls(assetVersions)],
+          remarkPlugins: [
+            makeRemarkRewriteAssetUrls(assetVersions),
+            remarkAutolinkBareUrls,
+          ],
         });
         if (cancelled) return;
         setError(null);

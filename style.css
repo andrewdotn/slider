@@ -346,3 +346,9 @@ pre code > span.hl {
 .file-excerpt-shell .xterm .xterm-scrollable-element > .scrollbar {
   display: none !important;
 }
+
+a:hover {
+  color: rgb(0, 102, 204);
+  text-decoration: underline;
+}
+
