@@ -323,6 +323,26 @@ function SlideView({
     [talk, slides, idx],
   );
 
+  const FileExcerptForSlide = useMemo(
+    () =>
+      (props: {
+        src: string;
+        lineHighlights?: RegExp[];
+        runMethod?: "Makefile";
+        makefileName?: string;
+      }) => <FileExcerpt {...props} talk={talk} slideSlug={slide.slug} />,
+    [talk, slide.slug],
+  );
+  const mdxComponents = useMemo(
+    () => ({
+      TableOfContents,
+      Font,
+      pre: Pre,
+      FileExcerpt: FileExcerptForSlide,
+    }),
+    [TableOfContents, FileExcerptForSlide],
+  );
+
   const prevSlide = idx > 0 ? slides[idx - 1] : null;
   const nextSlide = idx < slides.length - 1 ? slides[idx + 1] : null;
 
@@ -353,25 +373,7 @@ function SlideView({
           {error ? (
             <pre className="mdx-error">{error}</pre>
           ) : Content ? (
-            <Content
-              components={{
-                TableOfContents,
-                Font,
-                pre: Pre,
-                FileExcerpt: (props: {
-                  src: string;
-                  lineHighlights?: RegExp[];
-                  runMethod?: "Makefile";
-                  makefileName?: string;
-                }) => (
-                  <FileExcerpt
-                    {...props}
-                    talk={talk}
-                    slideSlug={slide.slug}
-                  />
-                ),
-              }}
-            />
+            <Content components={mdxComponents} />
           ) : null}
         </article>
       </div>
