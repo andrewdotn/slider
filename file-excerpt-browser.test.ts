@@ -25,8 +25,8 @@ async function waitForText(
   );
 }
 
-describe("FileExcerpt end-to-end", () => {
-  test(
+describe.concurrent("FileExcerpt end-to-end", () => {
+  test.concurrent(
     "loads a file, runs Make, streams output, and edits flow into the temp dir",
     { timeout: 60000 },
     async ({ tmpdirBrowserServer }) => {
@@ -123,7 +123,7 @@ describe("FileExcerpt end-to-end", () => {
     },
   );
 
-  test(
+  test.concurrent(
     "edits in CodeMirror persist across slide navigation until reload",
     { timeout: 60000 },
     async ({ tmpdirBrowserServer }) => {
@@ -226,7 +226,7 @@ describe("FileExcerpt end-to-end", () => {
     },
   );
 
-  test(
+  test.concurrent(
     "streams output incrementally and shows elapsed time when done",
     { timeout: 60000 },
     async ({ tmpdirBrowserServer }) => {
@@ -302,7 +302,7 @@ describe("FileExcerpt end-to-end", () => {
     },
   );
 
-  test(
+  test.concurrent(
     "Manage menu toggles per-line timestamp prefixes",
     { timeout: 60000 },
     async ({ tmpdirBrowserServer }) => {
@@ -380,7 +380,7 @@ describe("FileExcerpt end-to-end", () => {
     },
   );
 
-  test(
+  test.concurrent(
     "make clean failure surfaces in the popup with exit code and duration",
     { timeout: 60000 },
     async ({ tmpdirBrowserServer }) => {
@@ -431,7 +431,7 @@ describe("FileExcerpt end-to-end", () => {
     },
   );
 
-  test(
+  test.concurrent(
     "Manage menu can show captured make clean output and switch back",
     { timeout: 60000 },
     async ({ tmpdirBrowserServer }) => {
@@ -520,7 +520,7 @@ describe("FileExcerpt end-to-end", () => {
     },
   );
 
-  test(
+  test.concurrent(
     "popup toolbar exposes play/stop and font-size buttons with tooltips",
     { timeout: 60000 },
     async ({ tmpdirBrowserServer }) => {
@@ -605,7 +605,7 @@ describe("FileExcerpt end-to-end", () => {
     },
   );
 
-  test(
+  test.concurrent(
     "play toolbar button toggles to stop while running and re-runs when idle",
     { timeout: 60000 },
     async ({ tmpdirBrowserServer }) => {
@@ -667,7 +667,7 @@ describe("FileExcerpt end-to-end", () => {
     },
   );
 
-  test(
+  test.concurrent(
     "without runMethod the excerpt is read-only and has no Run button",
     { timeout: 30000 },
     async ({ tmpdirBrowserServer }) => {

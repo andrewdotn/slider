@@ -1,7 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
+import { visit } from "unist-util-visit";
 import { parseTalk, slideHeading, type Slide } from "./slides.ts";
+
+// Rewrite relative image URLs in slide markdown so they resolve to the
+// /talks-static/ asset route rather than the slide page URL.
+function remarkRewriteAssetUrls() {
+  return (tree: unknown) => {
+    visit(tree as never, "image", (node: { url?: string }) => {
+      const url = node.url;
+      if (!url) return;
+      if (/^(?:[a-z][a-z0-9+.-]*:|\/|#|data:)/i.test(url)) return;
+      node.url = `/talks-static/${url}`;
+    });
+  };
+}
 import {
   countSubSlides,
   normalizeIndentedCode,
@@ -218,7 +232,10 @@ function SlideView({
     const transformed = transformForSubSlide(normalized, clampedSub);
     (async () => {
       try {
-        const mod = await evaluate(transformed, { ...(runtime as any) });
+        const mod = await evaluate(transformed, {
+          ...(runtime as any),
+          remarkPlugins: [remarkRewriteAssetUrls],
+        });
         if (cancelled) return;
         setError(null);
         setContent(() => mod.default);

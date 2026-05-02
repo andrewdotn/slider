@@ -10,6 +10,8 @@ Author
 
 Hello
 
+![](sample-img.png)
+
 ## Motivation
 
 Why?
