@@ -418,6 +418,7 @@ export function FileExcerpt({
     setPopupOpen(true);
     setMenuOpen(false);
     setCleanText(null);
+    setShellOpen(false);
     if (esRef.current) {
       esRef.current.close();
       esRef.current = null;
