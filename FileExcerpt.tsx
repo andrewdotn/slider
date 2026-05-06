@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { EditorView, keymap, Decoration, type DecorationSet } from "@codemirror/view";
 import { EditorState, StateField, RangeSetBuilder, type Extension } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -349,6 +350,7 @@ export function FileExcerpt({
   const [outputFontSize, setOutputFontSize] = useState(14);
   const [showTimestamps, setShowTimestamps] = useState(false);
   const [runStartT, setRunStartT] = useState<number | null>(null);
+  const [articleEl, setArticleEl] = useState<HTMLElement | null>(null);
   const [, setTick] = useState(0);
   const esRef = useRef<EventSource | null>(null);
 
@@ -627,6 +629,7 @@ export function FileExcerpt({
     if (!fe) return;
     const article = fe.closest("article") as HTMLElement | null;
     if (!article) return;
+    setArticleEl(article);
     const update = () => {
       let topInArticle = 0;
       let el: HTMLElement | null = fe;
@@ -645,9 +648,14 @@ export function FileExcerpt({
       if (btn) {
         btn.style.top = `${bottomInFe - btn.offsetHeight - 4}px`;
       }
+      // The popup is portaled into the article, so position it relative to
+      // the article's visible lower-right rather than the file-excerpt — a
+      // short block near the top of the slide should still get a popup
+      // anchored at the slide's bottom, not floating above its first line.
       const popup = popupRef.current;
       if (popup) {
-        popup.style.top = `${bottomInFe - popup.offsetHeight - 4}px`;
+        const bottomInArticle = article.scrollTop + article.clientHeight;
+        popup.style.top = `${bottomInArticle - popup.offsetHeight - 4}px`;
       }
     };
     update();
@@ -684,7 +692,7 @@ export function FileExcerpt({
           ▶ Run
         </button>
       )}
-      {popupOpen && (
+      {popupOpen && articleEl && createPortal(
         <div
           className="file-excerpt-popup"
           style={{ width: popupSize.width, height: popupSize.height }}
@@ -835,7 +843,8 @@ export function FileExcerpt({
               {output}
             </pre>
           )}
-        </div>
+        </div>,
+        articleEl,
       )}
     </div>
   );
