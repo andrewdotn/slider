@@ -2,7 +2,7 @@ import { describe } from "vitest";
 import { test } from "./server.test.ts";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { chromium } from "playwright";
+import { chromium, webkit } from "playwright";
 
 // CodeMirror's defaultKeymap binds Mod-a (Cmd on macOS, Ctrl elsewhere) to
 // selectAll, while Ctrl-a on macOS is bound to cursorLineStart. Pick the
@@ -697,6 +697,124 @@ describe.concurrent("FileExcerpt end-to-end", () => {
         await waitForText(page, ".file-excerpt", "int x = 1");
         const hasRun = await page.$(".file-excerpt-run");
         if (hasRun) throw new Error("expected no Run button");
+      } finally {
+        await browser.close();
+      }
+    },
+  );
+
+  test.concurrent(
+    "clicking outside the editable area releases CodeMirror focus so arrows navigate (webkit)",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "blur");
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "hello.c"), "int x = 1;\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "all:\n\t@true\nclean:\n\t@true\n",
+      );
+
+      const md = [
+        "# Demo",
+        "",
+        "## First",
+        "",
+        '<FileExcerpt src="blur/hello.c" runMethod="Makefile" />',
+        "",
+        "## Second",
+        "",
+        "Other slide.",
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "blur.md"), md);
+
+      const browser = await webkit.launch();
+      try {
+        const page = await browser.newPage();
+        await page.setViewportSize({ width: 1280, height: 720 });
+        page.on("console", (msg) => {
+          if (msg.type() === "error") console.error("[browser]", msg.text());
+        });
+
+        await page.goto(`${url}/talks/blur/first`);
+        await waitForText(page, ".file-excerpt", "int x = 1");
+
+        // Focus CodeMirror.
+        await page.click(".cm-content");
+        const focusedAfterCmClick = await page.evaluate(
+          () => !!document.activeElement?.closest(".cm-editor"),
+        );
+        if (!focusedAfterCmClick) throw new Error("CM did not take focus");
+
+        // ArrowRight inside CM must not navigate.
+        const urlBefore = page.url();
+        await page.keyboard.press("ArrowRight");
+        if (page.url() !== urlBefore) {
+          throw new Error("Arrow key navigated while CM had focus");
+        }
+
+        // Click in the file-excerpt's bottom padding (outside the editor).
+        const padPoint = await page.evaluate(() => {
+          const fe = document.querySelector(".file-excerpt") as HTMLElement;
+          const r = fe.getBoundingClientRect();
+          return { x: r.left + r.width / 2, y: r.bottom - 2 };
+        });
+        await page.mouse.click(padPoint.x, padPoint.y);
+        await page.waitForFunction(
+          () => !document.activeElement?.closest(".cm-editor"),
+          { timeout: 2000 },
+        );
+
+        // Now ArrowRight should navigate to the next slide.
+        await page.keyboard.press("ArrowRight");
+        await page.waitForFunction(
+          () => location.pathname.endsWith("/second"),
+          { timeout: 5000 },
+        );
+
+        // Re-focus and click the article's margin below the file-excerpt.
+        await page.evaluate(() => {
+          history.pushState({}, "", "/talks/blur/first");
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        });
+        await waitForText(page, ".cm-content", "int x = 1");
+        await page.click(".cm-content");
+        const articlePoint = await page.evaluate(() => {
+          const fe = document.querySelector(".file-excerpt") as HTMLElement;
+          const article = document.querySelector(
+            "article.current",
+          ) as HTMLElement;
+          const fr = fe.getBoundingClientRect();
+          const ar = article.getBoundingClientRect();
+          return {
+            x: fr.left + fr.width / 2,
+            y: Math.min(fr.bottom + 30, ar.bottom - 5),
+          };
+        });
+        await page.mouse.click(articlePoint.x, articlePoint.y);
+        await page.waitForFunction(
+          () => !document.activeElement?.closest(".cm-editor"),
+          { timeout: 2000 },
+        );
+
+        // After clicking padding, focus should be off the editor.
+        await page.waitForFunction(
+          () => !document.activeElement?.closest(".cm-editor"),
+          { timeout: 2000 },
+        );
+
+        // Now ArrowRight should navigate to the next slide.
+        await page.keyboard.press("ArrowRight");
+        await page.waitForFunction(
+          () => location.pathname.endsWith("/second"),
+          { timeout: 5000 },
+        );
       } finally {
         await browser.close();
       }
