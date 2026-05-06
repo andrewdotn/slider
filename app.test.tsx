@@ -123,6 +123,24 @@ describe("MDX rendering", () => {
     expect(html).toContain("body");
   });
 
+  it("renders Hide tag with visibility:hidden so content reserves space", async () => {
+    const Hide = ({ children }: { children?: React.ReactNode }) => (
+      <span style={{ visibility: "hidden" }}>{children}</span>
+    );
+    const transformed = transformForSubSlide(
+      normalizeIndentedCode("# A\n\nbefore <Hide>secret</Hide> after\n"),
+      1,
+    );
+    const { default: Content } = await evaluate(transformed, {
+      ...(runtime as any),
+    });
+    const html = renderToStaticMarkup(<Content components={{ Hide }} />);
+    expect(html).toContain("visibility:hidden");
+    expect(html).toContain("secret");
+    expect(html).toContain("before");
+    expect(html).toContain("after");
+  });
+
   it("renders the sample-talk1 slides as MDX", async () => {
     const fs = await import("node:fs/promises");
     const markdown = await fs.readFile("sample-talk1.md", "utf-8");

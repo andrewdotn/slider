@@ -27,6 +27,8 @@ inspired by LaTeX’s beamer.
   - `<Font size="80%"/>` scales the text on one slide. Helpful for code
     blocks.
 
+  - `<Hide>…</Hide>` leaves space for the child content without displaying it
+
   - Customize syntax highlighting for indented code blocks via a comment
     before, e.g.,
 

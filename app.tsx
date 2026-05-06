@@ -51,6 +51,10 @@ function Font({ size }: { size: string }) {
   );
 }
 
+function Hide({ children }: { children?: React.ReactNode }) {
+  return <span style={{ visibility: "hidden" }}>{children}</span>;
+}
+
 function Pre(props: React.HTMLAttributes<HTMLPreElement>) {
   const child = React.Children.only(props.children) as React.ReactElement<{
     children?: React.ReactNode;
@@ -358,6 +362,7 @@ function SlideView({
     () => ({
       TableOfContents,
       Font,
+      Hide,
       pre: Pre,
       FileExcerpt: FileExcerptForSlide,
       Frame,
