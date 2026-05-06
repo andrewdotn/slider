@@ -63,6 +63,5 @@ Here is *the code*
 
 <FileExcerpt
     src="sample-long-file/sample-long-file.txt"
-    excerptRegexes={[[/^<!-- start cut -->$/, /^<!-- end cut -->$/]]}
     runMethod="Makefile"
 />

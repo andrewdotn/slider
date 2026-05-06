@@ -317,6 +317,9 @@ export function FileExcerpt({
   slideSlug,
 }: Props) {
   const editorHost = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const runBtnRef = useRef<HTMLButtonElement | null>(null);
+  const popupRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const editedRef = useRef<string>("");
   const intervalsRef = useRef<ExcerptInterval[] | null>(null);
@@ -601,12 +604,58 @@ export function FileExcerpt({
     }
   };
 
+  // Position the run button and output popup at the bottom-right of the
+  // *visible* portion of the slide article. The article has overflow:auto, so
+  // when content overflows the slide it scrolls internally; without this,
+  // bottom-anchored children sit at the bottom of the scrolled content (off
+  // screen until you scroll all the way down).
+  useEffect(() => {
+    const fe = containerRef.current;
+    if (!fe) return;
+    const article = fe.closest("article") as HTMLElement | null;
+    if (!article) return;
+    const update = () => {
+      let topInArticle = 0;
+      let el: HTMLElement | null = fe;
+      while (el && el !== article) {
+        topInArticle += el.offsetTop;
+        el = el.offsetParent as HTMLElement | null;
+      }
+      // Clamp to the file-excerpt's own bottom so the button doesn't drift
+      // past the end of a short block (or when the user has scrolled past the
+      // block) — otherwise overflow:hidden on .file-excerpt clips it.
+      const bottomInFe = Math.min(
+        article.scrollTop + article.clientHeight - topInArticle,
+        fe.offsetHeight,
+      );
+      const btn = runBtnRef.current;
+      if (btn) {
+        btn.style.top = `${bottomInFe - btn.offsetHeight - 4}px`;
+      }
+      const popup = popupRef.current;
+      if (popup) {
+        popup.style.top = `${bottomInFe - popup.offsetHeight - 4}px`;
+      }
+    };
+    update();
+    article.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    const ro = new ResizeObserver(update);
+    ro.observe(fe);
+    ro.observe(article);
+    return () => {
+      article.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      ro.disconnect();
+    };
+  }, [popupOpen, popupSize.width, popupSize.height, running]);
+
   if (loadError) {
     return <pre className="mdx-error">Failed to load {src}: {loadError}</pre>;
   }
 
   return (
-    <div className="file-excerpt">
+    <div className="file-excerpt" ref={containerRef}>
       <div className="file-excerpt-editor" ref={editorHost} />
       {runMethod && !popupOpen && (
         <button
@@ -614,6 +663,7 @@ export function FileExcerpt({
           className="file-excerpt-run"
           onClick={startRun}
           disabled={running}
+          ref={runBtnRef}
         >
           ▶ Run
         </button>
@@ -622,6 +672,7 @@ export function FileExcerpt({
         <div
           className="file-excerpt-popup"
           style={{ width: popupSize.width, height: popupSize.height }}
+          ref={popupRef}
         >
           <div
             className="file-excerpt-popup-resize"

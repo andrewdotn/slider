@@ -207,7 +207,6 @@ pre code > span.hl {
 }
 .file-excerpt-run {
   position: absolute;
-  bottom: 4px;
   right: 4px;
   font-size: 12px;
   padding: 2px 8px;
@@ -215,9 +214,8 @@ pre code > span.hl {
   z-index: 5;
 }
 .file-excerpt-popup {
-  position: fixed;
-  bottom: 30px;
-  right: 40px;
+  position: absolute;
+  right: 4px;
   background: #202020;
   color: #e6e6e6;
   border-radius: 10px;

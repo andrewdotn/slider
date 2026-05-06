@@ -702,4 +702,165 @@ describe.concurrent("FileExcerpt end-to-end", () => {
       }
     },
   );
+
+  test.concurrent(
+    "Run button is visible at the bottom of short file excerpts",
+    { timeout: 30000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "short");
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "s.c"), "int x = 1;\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "all:\n\t@echo done\n\nclean:\n\t@true\n",
+      );
+
+      const md = [
+        "# Demo",
+        "",
+        "## Short",
+        "",
+        '<FileExcerpt src="short/s.c" runMethod="Makefile" />',
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "short-talk.md"), md);
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await page.goto(`${url}/talks/short-talk/short`);
+        await waitForText(page, ".file-excerpt", "int x = 1");
+
+        // The Run button must lie within the file-excerpt's box (not clipped
+        // by overflow:hidden) and within the article's visible area.
+        const ok = await page.evaluate(() => {
+          const fe = document.querySelector(".file-excerpt") as HTMLElement;
+          const a = document.querySelector("article.current") as HTMLElement;
+          const b = document.querySelector(".file-excerpt-run") as HTMLElement;
+          if (!fe || !a || !b) return false;
+          const fr = fe.getBoundingClientRect();
+          const ar = a.getBoundingClientRect();
+          const br = b.getBoundingClientRect();
+          return (
+            br.bottom <= fr.bottom + 1 &&
+            br.top >= fr.top - 1 &&
+            br.bottom <= ar.bottom + 1 &&
+            br.width > 0 &&
+            br.height > 0
+          );
+        });
+        if (!ok) throw new Error("Run button not visible inside short excerpt");
+      } finally {
+        await browser.close();
+      }
+    },
+  );
+
+  test.concurrent(
+    "Run button and output popup stay in the visible portion of an overflowing slide",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "tall");
+      await fs.mkdir(dir, { recursive: true });
+      // A long file so the FileExcerpt overflows the slide vertically.
+      const lines = Array.from({ length: 200 }, (_, i) => `int v${i} = ${i};`);
+      await fs.writeFile(path.join(dir, "tall.c"), lines.join("\n") + "\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "all:\n\t@echo done\n\nclean:\n\t@true\n",
+      );
+
+      const md = [
+        "# Demo",
+        "",
+        "## Tall",
+        "",
+        '<FileExcerpt src="tall/tall.c" runMethod="Makefile" />',
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "tall-talk.md"), md);
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await page.goto(`${url}/talks/tall-talk/tall`);
+        await waitForText(page, ".file-excerpt", "v0 = 0");
+
+        // Sanity: the article should actually be scrollable here.
+        const scrollable = await page.evaluate(() => {
+          const a = document.querySelector("article.current") as HTMLElement;
+          return a ? a.scrollHeight > a.clientHeight + 5 : false;
+        });
+        if (!scrollable) throw new Error("expected article to overflow vertically");
+
+        // The Run button should be inside the visible portion of the article
+        // before any scrolling.
+        const runVisibleBefore = await page.evaluate(() => {
+          const a = document.querySelector("article.current") as HTMLElement;
+          const b = document.querySelector(".file-excerpt-run") as HTMLElement;
+          if (!a || !b) return null;
+          const ar = a.getBoundingClientRect();
+          const br = b.getBoundingClientRect();
+          return br.bottom <= ar.bottom + 1 && br.top >= ar.top - 1;
+        });
+        if (!runVisibleBefore) throw new Error("Run button not visible before scroll");
+
+        // Scroll the article to the bottom — the Run button should still be
+        // inside the visible portion (not clipped at the bottom of content).
+        await page.evaluate(() => {
+          const a = document.querySelector("article.current") as HTMLElement;
+          a.scrollTop = a.scrollHeight;
+        });
+        // Allow scroll handler to run.
+        await page.waitForFunction(() => {
+          const a = document.querySelector("article.current") as HTMLElement;
+          const b = document.querySelector(".file-excerpt-run") as HTMLElement;
+          if (!a || !b) return false;
+          const ar = a.getBoundingClientRect();
+          const br = b.getBoundingClientRect();
+          return br.bottom <= ar.bottom + 1 && br.top >= ar.top - 1;
+        }, { timeout: 5000 });
+
+        // Open the popup; it should also be inside the visible portion.
+        await page.click(".file-excerpt-run");
+        await page.waitForSelector(".file-excerpt-popup");
+        await page.waitForFunction(() => {
+          const a = document.querySelector("article.current") as HTMLElement;
+          const p = document.querySelector(".file-excerpt-popup") as HTMLElement;
+          if (!a || !p) return false;
+          const ar = a.getBoundingClientRect();
+          const pr = p.getBoundingClientRect();
+          return pr.bottom <= ar.bottom + 1 && pr.top >= ar.top - 1;
+        }, { timeout: 5000 });
+
+        // Scroll back to top — popup should still be in view.
+        await page.evaluate(() => {
+          const a = document.querySelector("article.current") as HTMLElement;
+          a.scrollTop = 0;
+        });
+        await page.waitForFunction(() => {
+          const a = document.querySelector("article.current") as HTMLElement;
+          const p = document.querySelector(".file-excerpt-popup") as HTMLElement;
+          if (!a || !p) return false;
+          const ar = a.getBoundingClientRect();
+          const pr = p.getBoundingClientRect();
+          return pr.bottom <= ar.bottom + 1 && pr.top >= ar.top - 1;
+        }, { timeout: 5000 });
+      } finally {
+        await browser.close();
+      }
+    },
+  );
 });
