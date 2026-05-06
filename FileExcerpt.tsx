@@ -3,12 +3,15 @@ import { createPortal } from "react-dom";
 import { EditorView, keymap, Decoration, type DecorationSet } from "@codemirror/view";
 import { EditorState, StateField, RangeSetBuilder, type Extension } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
+import { syntaxHighlighting, defaultHighlightStyle, StreamLanguage } from "@codemirror/language";
 import { cpp } from "@codemirror/lang-cpp";
 import { go } from "@codemirror/lang-go";
 import { python } from "@codemirror/lang-python";
 import { javascript } from "@codemirror/lang-javascript";
 import { rust } from "@codemirror/lang-rust";
+import { json } from "@codemirror/lang-json";
+import { ruby } from "@codemirror/legacy-modes/mode/ruby";
+import { toml } from "@codemirror/legacy-modes/mode/toml";
 import { Terminal } from "@xterm/xterm";
 import { CanvasAddon } from "@xterm/addon-canvas";
 import "@xterm/xterm/css/xterm.css";
@@ -29,6 +32,13 @@ function languageForExt(src: string): Extension | null {
       return python();
     case "rs":
       return rust();
+    case "rb":
+      return StreamLanguage.define(ruby);
+    case "toml":
+      return StreamLanguage.define(toml);
+    case "json":
+    case "gyp":
+      return json();
     case "js":
     case "jsx":
     case "ts":

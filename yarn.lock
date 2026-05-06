@@ -150,6 +150,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@codemirror/lang-json@npm:^6.0.2":
+  version: 6.0.2
+  resolution: "@codemirror/lang-json@npm:6.0.2"
+  dependencies:
+    "@codemirror/language": "npm:^6.0.0"
+    "@lezer/json": "npm:^1.0.0"
+  checksum: 10c0/4a36022226557d0571c143f907638eb2d46c0f7cf96c6d9a86dac397a789efa2b387e3dd3df94bac21e27692892443b24f8129c044c9012df66e68f5080745b0
+  languageName: node
+  linkType: hard
+
 "@codemirror/lang-python@npm:^6.2.1":
   version: 6.2.1
   resolution: "@codemirror/lang-python@npm:6.2.1"
@@ -184,6 +194,15 @@ __metadata:
     "@lezer/lr": "npm:^1.0.0"
     style-mod: "npm:^4.0.0"
   checksum: 10c0/682d476f35f187a8d2f59f9b2e561045353c87736e5774b5b8dd22ade7deb3c85b9d3cdde988b00aafb345732144c134adf45dadab067430aaee159abcc456a4
+  languageName: node
+  linkType: hard
+
+"@codemirror/legacy-modes@npm:^6.5.2":
+  version: 6.5.2
+  resolution: "@codemirror/legacy-modes@npm:6.5.2"
+  dependencies:
+    "@codemirror/language": "npm:^6.0.0"
+  checksum: 10c0/698639c80a12fbac3616308e8f4d70506fef93337a50cc8b3e2832c2029a9022a061a81cf02de13aa52d28fa42780c57ab91a6416e3b410765aa65ec113b6637
   languageName: node
   linkType: hard
 
@@ -390,6 +409,17 @@ __metadata:
     "@lezer/highlight": "npm:^1.1.3"
     "@lezer/lr": "npm:^1.3.0"
   checksum: 10c0/77b97c546d3661223ce77af15192efad42585d01e46022222273cd0c1cb20df8063d266037ae67774f051a6cb72db49804b6a46b06b926ee541807ef01741f6a
+  languageName: node
+  linkType: hard
+
+"@lezer/json@npm:^1.0.0":
+  version: 1.0.3
+  resolution: "@lezer/json@npm:1.0.3"
+  dependencies:
+    "@lezer/common": "npm:^1.2.0"
+    "@lezer/highlight": "npm:^1.0.0"
+    "@lezer/lr": "npm:^1.0.0"
+  checksum: 10c0/e91c957cc0825e927b55fbcd233d7ee0b39f9c2a89d9475489f394b7eba2b59e5f480d157a12d5cd6ae6f14bc99f9ccd8e8113baad498199ef1b13c49105f546
   languageName: node
   linkType: hard
 
@@ -3556,9 +3586,11 @@ __metadata:
     "@codemirror/lang-cpp": "npm:^6.0.3"
     "@codemirror/lang-go": "npm:^6.0.1"
     "@codemirror/lang-javascript": "npm:^6.2.5"
+    "@codemirror/lang-json": "npm:^6.0.2"
     "@codemirror/lang-python": "npm:^6.2.1"
     "@codemirror/lang-rust": "npm:^6.0.2"
     "@codemirror/language": "npm:^6.12.3"
+    "@codemirror/legacy-modes": "npm:^6.5.2"
     "@codemirror/state": "npm:^6.6.0"
     "@codemirror/view": "npm:^6.41.1"
     "@mdx-js/mdx": "npm:^3.1.1"
