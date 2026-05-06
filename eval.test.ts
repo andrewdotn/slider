@@ -356,6 +356,66 @@ describe("eval", () => {
     expect(cb1Dirs.length).to.equal(5);
   });
 
+  test("runDirectory copies an ancestor dir and writes edits at the nested path", async ({
+    tmpdirServer,
+  }) => {
+    const { server, tmpdir } = await tmpdirServer;
+    // Layout: proj/Makefile, proj/sub/main.c. runDirectory=proj copies the
+    // whole project, and the edited file lands at proj-copy/sub/main.c.
+    const proj = path.join(tmpdir, "proj");
+    const sub = path.join(proj, "sub");
+    await fs.mkdir(sub, { recursive: true });
+    await fs.writeFile(path.join(tmpdir, "demo.md"), "# Demo\n");
+    await fs.writeFile(path.join(sub, "main.c"), "// original\n");
+    await fs.writeFile(
+      path.join(proj, "Makefile"),
+      "all:\n\t@cat sub/main.c\nclean:\n\t@true\n",
+    );
+
+    const runRes = await fetch(`${server.url}/eval/demo/intro/cb1/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        src: "proj/sub/main.c",
+        runDirectory: "proj",
+        files: { "sub/main.c": "// edited content\n" },
+      }),
+    });
+    expect(runRes.status).to.equal(200);
+    const { runId, tempDir } = await runRes.json();
+    const { chunks, end } = await readSse(
+      `${server.url}/eval/demo/intro/cb1/output/${runId}`,
+    );
+    expect(end.exitCode).to.equal(0);
+    const all = chunks.map((c) => c.text).join("");
+    expect(all).to.contain("// edited content");
+    // Ancestor's Makefile + sub dir were copied.
+    const top = await fs.readdir(tempDir);
+    expect(top.sort()).to.deep.equal(["Makefile", "sub"]);
+    const written = await fs.readFile(
+      path.join(tempDir, "sub/main.c"),
+      "utf-8",
+    );
+    expect(written).to.equal("// edited content\n");
+  });
+
+  test("runDirectory that isn't a path prefix of src is rejected", async ({
+    tmpdirServer,
+  }) => {
+    const { server, tmpdir } = await tmpdirServer;
+    await setupHelloTalk(tmpdir);
+    const runRes = await fetch(`${server.url}/eval/demo/intro/cb1/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        src: "hello/hello.c",
+        // "he" is a string prefix of "hello/..." but not at a `/` boundary.
+        runDirectory: "he",
+      }),
+    });
+    expect(runRes.status).to.equal(400);
+  });
+
   test("path traversal rejected", async ({ tmpdirServer }) => {
     const { server, tmpdir } = await tmpdirServer;
     await fs.writeFile(path.join(tmpdir, "demo.md"), "# Demo\n");

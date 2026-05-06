@@ -62,9 +62,14 @@ type Props = {
   runMethod?: "Makefile";
   makefileName?: string;
   makefileTargets?: string[];
+  runDirectory?: string;
   talk: string;
   slideSlug: string;
 };
+
+function isValidRunDirectory(runDirectory: string, src: string): boolean {
+  return src.startsWith(runDirectory + "/");
+}
 
 function codeblockIdFor(src: string): string {
   return src
@@ -313,9 +318,14 @@ export function FileExcerpt({
   runMethod,
   makefileName,
   makefileTargets,
+  runDirectory,
   talk,
   slideSlug,
 }: Props) {
+  const runDirectoryError =
+    runDirectory !== undefined && !isValidRunDirectory(runDirectory, src)
+      ? `runDirectory ${JSON.stringify(runDirectory)} is not a path prefix of src ${JSON.stringify(src)}`
+      : null;
   const editorHost = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const runBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -438,7 +448,9 @@ export function FileExcerpt({
       esRef.current.close();
       esRef.current = null;
     }
-    const fileName = src.split("/").pop()!;
+    const fileName = runDirectory
+      ? src.slice(runDirectory.length + 1)
+      : src.split("/").pop()!;
     let fileContent = editedRef.current.endsWith("\n")
       ? editedRef.current
       : editedRef.current + "\n";
@@ -459,6 +471,7 @@ export function FileExcerpt({
       files: { [fileName]: fileContent },
       makefileName,
       makefileTargets,
+      runDirectory,
     };
     let r: Response;
     try {
@@ -650,6 +663,9 @@ export function FileExcerpt({
     };
   }, [popupOpen, popupSize.width, popupSize.height, running]);
 
+  if (runDirectoryError) {
+    return <pre className="mdx-error">{runDirectoryError}</pre>;
+  }
   if (loadError) {
     return <pre className="mdx-error">Failed to load {src}: {loadError}</pre>;
   }

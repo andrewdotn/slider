@@ -33,6 +33,7 @@ export type RunRequest = {
   files?: Record<string, string>;
   makefileName?: string;
   makefileTargets?: string[];
+  runDirectory?: string;
 };
 
 type OutputChunk = { stream: "stdout" | "stderr"; text: string; t: number };
@@ -83,6 +84,11 @@ function isSafeSegment(s: string): boolean {
   return s.length > 0 && !s.includes("/") && !s.includes("\\") && !s.startsWith(".");
 }
 
+function isSafeRelPath(s: string): boolean {
+  if (!s) return false;
+  return s.split("/").every(isSafeSegment);
+}
+
 function isSafeMakeTarget(s: string): boolean {
   return s.length > 0 && !s.startsWith("-") && /^[A-Za-z0-9_./-]+$/.test(s);
 }
@@ -113,7 +119,7 @@ export class EvalManager {
   }
 
   async run(req: RunRequest): Promise<{ runId: string; tempDir: string }> {
-    const { talk, slide, codeblockId, src, files = {}, makefileName, makefileTargets } = req;
+    const { talk, slide, codeblockId, src, files = {}, makefileName, makefileTargets, runDirectory } = req;
     if (!isSafeSegment(talk) || !isSafeSegment(codeblockId)) {
       throw new Error("invalid talk or codeblockId");
     }
@@ -125,10 +131,15 @@ export class EvalManager {
     if (makefileTargets !== undefined && !makefileTargets.every(isSafeMakeTarget)) {
       throw new Error("invalid makefileTargets");
     }
+    if (runDirectory !== undefined && !src.startsWith(runDirectory + "/")) {
+      throw new Error("runDirectory must be a non-empty path prefix of src");
+    }
 
     const absSrc = this.resolveSrc(talk, src);
     if (!absSrc) throw new Error("src escapes baseDir");
-    const srcDir = path.dirname(absSrc);
+    const dirToCopy = runDirectory
+      ? path.join(this.baseDir, runDirectory)
+      : path.dirname(absSrc);
 
     await fs.mkdir(this.tempRoot, { recursive: true });
     const ts = Date.now().toString(36) + "-" + (this.nextRunId++).toString(36);
@@ -137,11 +148,14 @@ export class EvalManager {
       `${talk}-${slideSeg}-${codeblockId}-${ts}`,
     );
 
-    await fs.cp(srcDir, tempDir, { recursive: true });
+    await fs.cp(dirToCopy, tempDir, { recursive: true });
 
     for (const [name, content] of Object.entries(files)) {
-      if (!isSafeSegment(name)) continue;
-      await fs.writeFile(path.join(tempDir, name), content);
+      if (!isSafeRelPath(name)) continue;
+      const dest = safeJoinUnder(tempDir, name);
+      if (!dest) continue;
+      await fs.mkdir(path.dirname(dest), { recursive: true });
+      await fs.writeFile(dest, content);
     }
 
     const key = this.codeblockKey(talk, slideSeg, codeblockId);

@@ -333,6 +333,7 @@ function SlideView({
         runMethod?: "Makefile";
         makefileName?: string;
         makefileTargets?: string[];
+        runDirectory?: string;
       }) => {
         const allowed = new Set([
           "src",
@@ -341,6 +342,7 @@ function SlideView({
           "runMethod",
           "makefileName",
           "makefileTargets",
+          "runDirectory",
         ]);
         const unknown = Object.keys(props).filter((k) => !allowed.has(k));
         if (unknown.length > 0) {

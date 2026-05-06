@@ -58,6 +58,9 @@ inspired by LaTeX’s beamer.
             Makefiles in the same directory. `makefileTargets={["foo"]}` is
             available too.
 
+          - `runDirectory="foo/bar"` can set a parent dir containing a
+            Makefile for when `src="foo/bar/baz.qux"` is nested
+
         Recent temporary files are stored in `temp-eval` until the server
         exits.
 

@@ -138,12 +138,23 @@ export class Server {
       async (req, res) => {
         try {
           const { talk, slide, codeblockId } = req.params;
-          const { src, files, makefileName, makefileTargets } = req.body ?? {};
+          const { src, files, makefileName, makefileTargets, runDirectory } =
+            req.body ?? {};
           if (typeof src !== "string") {
             return res.status(400).json({ error: "src required" });
           }
           if (!this.evalManager.resolveSrc(talk, src)) {
             return res.status(400).json({ error: "invalid src" });
+          }
+          if (runDirectory !== undefined) {
+            if (typeof runDirectory !== "string") {
+              return res.status(400).json({ error: "invalid runDirectory" });
+            }
+            if (!src.startsWith(runDirectory + "/")) {
+              return res.status(400).json({
+                error: "runDirectory must be a non-empty path prefix of src",
+              });
+            }
           }
           if (makefileName !== undefined && typeof makefileName !== "string") {
             return res.status(400).json({ error: "invalid makefileName" });
@@ -163,6 +174,7 @@ export class Server {
             files: files ?? {},
             makefileName,
             makefileTargets,
+            runDirectory,
           });
           res.json(result);
         } catch (err) {
