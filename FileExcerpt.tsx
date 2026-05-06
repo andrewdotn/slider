@@ -437,6 +437,28 @@ export function FileExcerpt({
     };
   }, [original, lineHighlights, excerptRegexes, runMethod, src]);
 
+  // Safari/WebKit doesn't blur a contenteditable when the user clicks an
+  // adjacent non-focusable element (Chrome/Firefox do). When the editor keeps
+  // focus, arrow keys move the cursor inside the editor instead of navigating
+  // slides, and the user has no obvious way to recover. Force a blur on any
+  // mousedown outside the editor's DOM.
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const view = viewRef.current;
+      if (!view || !view.hasFocus) return;
+      const target = e.target as Node | null;
+      if (target && view.dom.contains(target)) return;
+      // Safari/WebKit's default mousedown behavior on a non-focusable element
+      // adjacent to a focused contenteditable re-asserts focus on the
+      // contenteditable; blur() alone is reverted before the click finishes.
+      // preventDefault on the outside-mousedown is what actually releases it.
+      e.preventDefault();
+      view.contentDOM.blur();
+    };
+    document.addEventListener("mousedown", onDown, true);
+    return () => document.removeEventListener("mousedown", onDown, true);
+  }, []);
+
   const startRun = async () => {
     setChunks([]);
     setEnd(null);
