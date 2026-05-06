@@ -19,6 +19,7 @@ export default defineConfig({
             "mdx-error.test.tsx",
             "file-excerpt.test.tsx",
             "frame.test.tsx",
+            "slide-number.test.tsx",
           ],
         },
       },
@@ -31,6 +32,7 @@ export default defineConfig({
             "mdx-error.test.tsx",
             "file-excerpt.test.tsx",
             "frame.test.tsx",
+            "slide-number.test.tsx",
           ],
           exclude: ["**/node_modules/**", "**/.claude/**"],
           browser: {

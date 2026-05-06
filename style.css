@@ -439,3 +439,24 @@ a:hover {
   text-decoration: underline;
 }
 
+/* The slide number sits between the < and > nav arrows. Its horizontal
+ * `left` is set inline based on progress through the deck — on the first
+ * and last sub-slides it occupies the slot of the missing nav arrow. */
+.slide-number {
+  position: fixed;
+  bottom: 1rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: #888;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  opacity: 0.5;
+  z-index: 100;
+  pointer-events: none;
+}
+

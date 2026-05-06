@@ -386,6 +386,30 @@ function SlideView({
     navigateTo(href);
   };
 
+  const slideNumber =
+    clampedSub > 1 ? `${idx + 1}.${clampedSub}` : `${idx + 1}`;
+
+  let totalSubs = 0;
+  let absoluteIndex = 0;
+  for (let i = 0; i < slides.length; i++) {
+    let n = 1;
+    try {
+      n = countSubSlides(slides[i].content);
+    } catch {
+      // broken slide; treat as a single subslide
+    }
+    if (i < idx) absoluteIndex += n;
+    totalSubs += n;
+  }
+  absoluteIndex += clampedSub - 1;
+
+  // Position the slide number along the bottom of the slide, lerping
+  // between the < slot (left: 1rem) and the > slot (left: 100vw - 3.5rem)
+  // so the first and last sub-slides cleanly take over the missing nav
+  // arrow's spot and intermediate slides space evenly between them.
+  const progress = totalSubs > 1 ? absoluteIndex / (totalSubs - 1) : 0;
+  const slideNumberLeft = `calc(1rem + (100vw - 4.5rem) * ${progress})`;
+
   return (
     <>
       <div className="slides">
@@ -396,6 +420,13 @@ function SlideView({
             <Content components={mdxComponents} />
           ) : null}
         </article>
+      </div>
+      <div
+        className="slide-number"
+        aria-label="Slide number"
+        style={{ left: slideNumberLeft }}
+      >
+        {slideNumber}
       </div>
       {prevHref && (
         <a
