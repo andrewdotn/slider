@@ -58,3 +58,11 @@ Here is *the code*
 ## Frames
 
 <Frame src="https://nodejs.org/docs/latest/api/"/>
+
+## Excerpt
+
+<FileExcerpt
+    src="sample-long-file/sample-long-file.txt"
+    excerptRegexes={[[/^<!-- start cut -->$/, /^<!-- end cut -->$/]]}
+    runMethod="Makefile"
+/>
