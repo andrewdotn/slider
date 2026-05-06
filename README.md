@@ -58,6 +58,10 @@ inspired by LaTeX’s beamer.
         Recent temporary files are stored in `temp-eval` until the server
         exits.
 
+      - `excerptRegexes={[[/begin cut/, /end cut/]]} />` shows only the
+        portions of the file between (but not including) those regexes. You
+        can still live-edit those excerpted portions.
+
 ## Shortcut keys
 
   - Right/left arrow keys to advance by sub-slide

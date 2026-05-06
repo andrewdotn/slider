@@ -10,6 +10,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { Terminal } from "@xterm/xterm";
 import { CanvasAddon } from "@xterm/addon-canvas";
 import "@xterm/xterm/css/xterm.css";
+import { computeExcerpts, reconstructFullFile, type ExcerptInterval } from "./excerpt-helpers.ts";
 
 function languageForExt(src: string): Extension | null {
   const ext = src.toLowerCase().split(".").pop() ?? "";
@@ -57,6 +58,7 @@ function highlightExtension(regexes: RegExp[]): Extension {
 type Props = {
   src: string;
   lineHighlights?: RegExp[];
+  excerptRegexes?: [RegExp, RegExp][];
   runMethod?: "Makefile";
   makefileName?: string;
   talk: string;
@@ -306,6 +308,7 @@ function ShellTerminal({
 export function FileExcerpt({
   src,
   lineHighlights = [],
+  excerptRegexes,
   runMethod,
   makefileName,
   talk,
@@ -314,6 +317,7 @@ export function FileExcerpt({
   const editorHost = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const editedRef = useRef<string>("");
+  const intervalsRef = useRef<ExcerptInterval[] | null>(null);
   const [original, setOriginal] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -392,10 +396,16 @@ export function FileExcerpt({
     ];
     if (lang) exts.push(lang);
 
-    const initialDoc = (editedCache.get(cacheKey) ?? original).replace(
-      /\n$/,
-      "",
-    );
+    let baseDoc = editedCache.get(cacheKey) ?? original;
+    if (excerptRegexes && excerptRegexes.length > 0) {
+      const { excerptedText, intervals } = computeExcerpts(original, excerptRegexes);
+      if (!editedCache.has(cacheKey)) baseDoc = excerptedText;
+      intervalsRef.current = intervals;
+    } else {
+      intervalsRef.current = null;
+    }
+    const initialDoc = baseDoc.replace(/\n$/, "");
+    editedRef.current = initialDoc;
     const view = new EditorView({
       state: EditorState.create({
         doc: initialDoc,
@@ -408,7 +418,7 @@ export function FileExcerpt({
       view.destroy();
       viewRef.current = null;
     };
-  }, [original, lineHighlights, runMethod, src]);
+  }, [original, lineHighlights, excerptRegexes, runMethod, src]);
 
   const startRun = async () => {
     setChunks([]);
@@ -424,12 +434,24 @@ export function FileExcerpt({
       esRef.current = null;
     }
     const fileName = src.split("/").pop()!;
-    const text = editedRef.current.endsWith("\n")
+    let fileContent = editedRef.current.endsWith("\n")
       ? editedRef.current
       : editedRef.current + "\n";
+    if (intervalsRef.current && original) {
+      try {
+        fileContent = reconstructFullFile(original, editedRef.current, intervalsRef.current);
+      } catch (e) {
+        const t = Date.now();
+        setRunStartT(t);
+        setChunks([{ stream: "stderr", text: `${(e as Error).message}\n`, t }]);
+        setRunning(false);
+        return;
+      }
+      if (!fileContent.endsWith("\n")) fileContent += "\n";
+    }
     const body = {
       src,
-      files: { [fileName]: text },
+      files: { [fileName]: fileContent },
       makefileName,
     };
     let r: Response;
