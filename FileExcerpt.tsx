@@ -8,6 +8,7 @@ import { cpp } from "@codemirror/lang-cpp";
 import { go } from "@codemirror/lang-go";
 import { python } from "@codemirror/lang-python";
 import { javascript } from "@codemirror/lang-javascript";
+import { rust } from "@codemirror/lang-rust";
 import { Terminal } from "@xterm/xterm";
 import { CanvasAddon } from "@xterm/addon-canvas";
 import "@xterm/xterm/css/xterm.css";
@@ -26,6 +27,8 @@ function languageForExt(src: string): Extension | null {
       return go();
     case "py":
       return python();
+    case "rs":
+      return rust();
     case "js":
     case "jsx":
     case "ts":
