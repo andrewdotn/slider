@@ -332,7 +332,24 @@ function SlideView({
         excerptRegexes?: [RegExp, RegExp][];
         runMethod?: "Makefile";
         makefileName?: string;
-      }) => <FileExcerpt {...props} talk={talk} slideSlug={slide.slug} />,
+        makefileTargets?: string[];
+      }) => {
+        const allowed = new Set([
+          "src",
+          "lineHighlights",
+          "excerptRegexes",
+          "runMethod",
+          "makefileName",
+          "makefileTargets",
+        ]);
+        const unknown = Object.keys(props).filter((k) => !allowed.has(k));
+        if (unknown.length > 0) {
+          throw new Error(
+            `FileExcerpt: unknown attribute${unknown.length > 1 ? "s" : ""}: ${unknown.join(", ")}`,
+          );
+        }
+        return <FileExcerpt {...props} talk={talk} slideSlug={slide.slug} />;
+      },
     [talk, slide.slug],
   );
   const mdxComponents = useMemo(

@@ -138,7 +138,7 @@ export class Server {
       async (req, res) => {
         try {
           const { talk, slide, codeblockId } = req.params;
-          const { src, files, makefileName } = req.body ?? {};
+          const { src, files, makefileName, makefileTargets } = req.body ?? {};
           if (typeof src !== "string") {
             return res.status(400).json({ error: "src required" });
           }
@@ -148,6 +148,13 @@ export class Server {
           if (makefileName !== undefined && typeof makefileName !== "string") {
             return res.status(400).json({ error: "invalid makefileName" });
           }
+          if (
+            makefileTargets !== undefined &&
+            (!Array.isArray(makefileTargets) ||
+              !makefileTargets.every((t: unknown) => typeof t === "string"))
+          ) {
+            return res.status(400).json({ error: "invalid makefileTargets" });
+          }
           const result = await this.evalManager.run({
             talk,
             slide,
@@ -155,6 +162,7 @@ export class Server {
             src,
             files: files ?? {},
             makefileName,
+            makefileTargets,
           });
           res.json(result);
         } catch (err) {

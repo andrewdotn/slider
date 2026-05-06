@@ -61,6 +61,7 @@ type Props = {
   excerptRegexes?: [RegExp, RegExp][];
   runMethod?: "Makefile";
   makefileName?: string;
+  makefileTargets?: string[];
   talk: string;
   slideSlug: string;
 };
@@ -311,6 +312,7 @@ export function FileExcerpt({
   excerptRegexes,
   runMethod,
   makefileName,
+  makefileTargets,
   talk,
   slideSlug,
 }: Props) {
@@ -453,6 +455,7 @@ export function FileExcerpt({
       src,
       files: { [fileName]: fileContent },
       makefileName,
+      makefileTargets,
     };
     let r: Response;
     try {
