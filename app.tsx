@@ -33,6 +33,7 @@ import { FileExcerpt } from "./FileExcerpt.tsx";
 import { Frame, toggleOfflineMode } from "./Frame.tsx";
 import { Laser } from "./Laser.tsx";
 import { Font } from "./Font.tsx";
+import { NUpDiff } from "./NUpDiff.tsx";
 
 type MDXContent = (props: Record<string, unknown>) => React.JSX.Element;
 
@@ -361,6 +362,7 @@ function SlideView({
       pre: Pre,
       FileExcerpt: FileExcerptForSlide,
       Frame,
+      NUpDiff,
     }),
     [TableOfContents, FileExcerptForSlide],
   );
