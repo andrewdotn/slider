@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EditorView, keymap, Decoration, type DecorationSet } from "@codemirror/view";
 import { EditorState, StateField, RangeSetBuilder, type Extension } from "@codemirror/state";
@@ -348,6 +348,7 @@ export function FileExcerpt({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const runBtnRef = useRef<HTMLButtonElement | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
+  const manageBtnRef = useRef<HTMLButtonElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const editedRef = useRef<string>("");
   const intervalsRef = useRef<ExcerptInterval[] | null>(null);
@@ -361,6 +362,9 @@ export function FileExcerpt({
   const [end, setEnd] = useState<EvalEnd | null>(null);
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<
+    { top: number; right: number; scale: number } | null
+  >(null);
   const [cleanText, setCleanText] = useState<string | null>(null);
   const [shellOpen, setShellOpen] = useState(false);
   const [popupSize, setPopupSize] = useState({ width: 600, height: 320 });
@@ -710,6 +714,38 @@ export function FileExcerpt({
     };
   }, [popupOpen, popupSize.height, running]);
 
+  // Manage menu is portaled to document.body and pinned with viewport-fixed
+  // coords. Why: nested under the slide article's `scale:` transform, Safari 18
+  // intermittently fails to paint the absolutely-positioned menu at certain
+  // scale values — the DOM and computed styles are correct, the pixels just
+  // never appear.
+  useLayoutEffect(() => {
+    if (!menuOpen) return;
+    const update = () => {
+      const btn = manageBtnRef.current;
+      if (!btn) return;
+      const r = btn.getBoundingClientRect();
+      const scale =
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--slide-scale",
+          ),
+        ) || 1;
+      setMenuPos({
+        top: r.bottom + 4,
+        right: window.innerWidth - r.right,
+        scale,
+      });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [menuOpen]);
+
   if (runDirectoryError) {
     return <pre className="mdx-error">{runDirectoryError}</pre>;
   }
@@ -782,7 +818,11 @@ export function FileExcerpt({
               >
                 A−
               </button>
-              <button type="button" onClick={() => setMenuOpen((v) => !v)}>
+              <button
+                type="button"
+                ref={manageBtnRef}
+                onClick={() => setMenuOpen((v) => !v)}
+              >
                 Manage ▾
               </button>
               <button
@@ -795,8 +835,17 @@ export function FileExcerpt({
                 ✕
               </button>
             </div>
-            {menuOpen && (
-              <ul className="file-excerpt-menu">
+            {menuOpen && menuPos && createPortal(
+              <ul
+                className="file-excerpt-menu"
+                style={{
+                  position: "fixed",
+                  top: menuPos.top,
+                  right: menuPos.right,
+                  transform: `scale(${menuPos.scale})`,
+                  transformOrigin: "top right",
+                }}
+              >
                 <li>
                   {cleanText !== null ? (
                     <button type="button" onClick={viewMake}>
@@ -854,7 +903,8 @@ export function FileExcerpt({
                     Close
                   </button>
                 </li>
-              </ul>
+              </ul>,
+              document.body,
             )}
           </div>
           {shellOpen && runId ? (

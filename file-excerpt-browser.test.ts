@@ -1070,4 +1070,106 @@ describe.concurrent("FileExcerpt end-to-end", () => {
       }
     },
   );
+
+  test.concurrent(
+    "Manage menu remains visible after the window is resized wider",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "resz");
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "src.txt"), "x\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "all:\n\t@echo done\nclean:\n\t@true\n",
+      );
+      await fs.writeFile(
+        path.join(tmpdir, "resz.md"),
+        [
+          "# Demo",
+          "",
+          "## Run",
+          "",
+          '<FileExcerpt src="resz/src.txt" runMethod="Makefile" />',
+          "",
+        ].join("\n"),
+      );
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.setViewportSize({ width: 1400, height: 900 });
+        await page.goto(`${url}/talks/resz/run`);
+        await waitForText(page, ".file-excerpt", "x");
+        await page.click(".file-excerpt-run");
+        await page.waitForSelector(".file-excerpt-popup");
+        await page.click(
+          '.file-excerpt-popup-header button:has-text("Manage")',
+        );
+        await page.waitForSelector(".file-excerpt-menu");
+
+        // Resize across the user-reported boundary; menu must stay visible
+        // and repositioned (right-aligned to the Manage button) at every step.
+        for (const w of [1500, 1700, 1900, 2200]) {
+          await page.setViewportSize({ width: w, height: 900 });
+          // Allow resize listeners and a layout tick.
+          await page.waitForFunction(
+            (vw) => window.innerWidth === vw,
+            w,
+            { timeout: 2000 },
+          );
+          // Let resize listeners flush and React commit the new menu position.
+          await page.waitForTimeout(50);
+          const info = await page.evaluate(() => {
+            const m = document.querySelector(
+              ".file-excerpt-menu",
+            ) as HTMLElement | null;
+            const btn = document.querySelector(
+              '.file-excerpt-popup-header button[ref], .file-excerpt-popup-header button',
+            );
+            // Find Manage button by text.
+            const manage = Array.from(
+              document.querySelectorAll(".file-excerpt-popup-header button"),
+            ).find((b) => b.textContent?.includes("Manage")) as HTMLElement;
+            if (!m || !manage) return null;
+            const mr = m.getBoundingClientRect();
+            const br = manage.getBoundingClientRect();
+            return {
+              menu: { top: mr.top, right: mr.right, w: mr.width, h: mr.height },
+              btn: { bottom: br.bottom, right: br.right },
+              vp: { w: window.innerWidth, h: window.innerHeight },
+              parent: m.parentElement?.tagName ?? null,
+            };
+          });
+          if (!info) throw new Error(`menu missing at width ${w}`);
+          if (info.menu.w <= 0 || info.menu.h <= 0) {
+            throw new Error(
+              `menu not visible at width ${w}: ${JSON.stringify(info)}`,
+            );
+          }
+          // Menu's right edge should track the Manage button's right edge.
+          if (Math.abs(info.menu.right - info.btn.right) > 2) {
+            throw new Error(
+              `menu right edge did not follow button at width ${w}: ` +
+                JSON.stringify(info),
+            );
+          }
+          // Menu should be portaled out of the popup so the popup's
+          // overflow:hidden can't clip it (and Safari's scaled-ancestor
+          // paint bug can't hide it).
+          if (info.parent !== "BODY") {
+            throw new Error(
+              `expected menu portaled to <body>, got <${info.parent}> at width ${w}`,
+            );
+          }
+        }
+      } finally {
+        await browser.close();
+      }
+    },
+  );
 });
