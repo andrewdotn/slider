@@ -9,6 +9,7 @@ import {
   transformForSubSlide,
 } from "./subslides.tsx";
 import { remarkAutolinkBareUrls } from "./remark-autolink-bare-urls.ts";
+import { Font } from "./Font.tsx";
 
 async function renderMdx(mdx: string, subIdx: number = 1): Promise<string> {
   const transformed = transformForSubSlide(
@@ -107,9 +108,6 @@ describe("MDX rendering", () => {
   });
 
   it("renders Font tag as a scoped style element", async () => {
-    const Font = ({ size }: { size: string }) => (
-      <style>{`.slides article.current > * { zoom: ${size}; }`}</style>
-    );
     const transformed = transformForSubSlide(
       normalizeIndentedCode('# A\n\n<Font size="70%"/>\n\nbody\n'),
       1,
@@ -118,7 +116,7 @@ describe("MDX rendering", () => {
       ...(runtime as any),
     });
     const html = renderToStaticMarkup(<Content components={{ Font }} />);
-    expect(html).toContain("zoom: 70%");
+    expect(html).toContain("--font-scale: 0.7");
     expect(html).toContain(".slides article.current");
     expect(html).toContain("body");
   });
@@ -139,6 +137,12 @@ describe("MDX rendering", () => {
     expect(html).toContain("secret");
     expect(html).toContain("before");
     expect(html).toContain("after");
+  });
+
+  it("Font emits a scoped --font-scale variable on the current article", () => {
+    const html = renderToStaticMarkup(<Font size="70%" />);
+    expect(html).toContain(".slides article.current");
+    expect(html).toContain("--font-scale: 0.7");
   });
 
   it("renders the sample-talk1 slides as MDX", async () => {

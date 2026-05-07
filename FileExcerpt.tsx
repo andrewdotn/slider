@@ -656,11 +656,14 @@ export function FileExcerpt({
     }
   };
 
-  // Position the run button and output popup at the bottom-right of the
-  // *visible* portion of the slide article. The article has overflow:auto, so
-  // when content overflows the slide it scrolls internally; without this,
-  // bottom-anchored children sit at the bottom of the scrolled content (off
-  // screen until you scroll all the way down).
+  // The run button is a direct child of .file-excerpt and pins to its
+  // bottom-right via CSS. When the excerpt is taller than the visible
+  // slide area, lift the button by the overflow so it stays on-screen.
+  // The popup is portaled into the article and pinned via `position: fixed`
+  // — the article's `scale` transform creates the containing block, so
+  // bottom/right anchor to the visible slide and don't drift when the
+  // article scrolls. (`position: sticky` doesn't engage inside a scaled
+  // ancestor in WebKit, so we use `fixed`.)
   useEffect(() => {
     const fe = containerRef.current;
     if (!fe) return;
@@ -668,31 +671,21 @@ export function FileExcerpt({
     if (!article) return;
     setArticleEl(article);
     const update = () => {
-      let topInArticle = 0;
-      let el: HTMLElement | null = fe;
-      while (el && el !== article) {
-        topInArticle += el.offsetTop;
-        el = el.offsetParent as HTMLElement | null;
-      }
-      // Clamp to the file-excerpt's own bottom so the button doesn't drift
-      // past the end of a short block (or when the user has scrolled past the
-      // block) — otherwise overflow:hidden on .file-excerpt clips it.
-      const bottomInFe = Math.min(
-        article.scrollTop + article.clientHeight - topInArticle,
-        fe.offsetHeight,
-      );
       const btn = runBtnRef.current;
-      if (btn) {
-        btn.style.top = `${bottomInFe - btn.offsetHeight - 4}px`;
-      }
-      // The popup is portaled into the article, so position it relative to
-      // the article's visible lower-right rather than the file-excerpt — a
-      // short block near the top of the slide should still get a popup
-      // anchored at the slide's bottom, not floating above its first line.
-      const popup = popupRef.current;
-      if (popup) {
-        const bottomInArticle = article.scrollTop + article.clientHeight;
-        popup.style.top = `${bottomInArticle - popup.offsetHeight - 4}px`;
+      if (!btn) return;
+      const feRect = fe.getBoundingClientRect();
+      const articleRect = article.getBoundingClientRect();
+      const overflowPx = feRect.bottom - articleRect.bottom;
+      if (overflowPx > 0) {
+        const slideScale =
+          parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+              "--slide-scale",
+            ),
+          ) || 1;
+        btn.style.bottom = `${overflowPx / slideScale + 4}px`;
+      } else {
+        btn.style.bottom = "";
       }
     };
     update();
@@ -706,7 +699,7 @@ export function FileExcerpt({
       window.removeEventListener("resize", update);
       ro.disconnect();
     };
-  }, [popupOpen, popupSize.width, popupSize.height, running]);
+  }, [popupOpen, running]);
 
   if (runDirectoryError) {
     return <pre className="mdx-error">{runDirectoryError}</pre>;
