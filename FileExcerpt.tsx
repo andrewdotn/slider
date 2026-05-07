@@ -656,14 +656,13 @@ export function FileExcerpt({
     }
   };
 
-  // The run button is a direct child of .file-excerpt and pins to its
-  // bottom-right via CSS. When the excerpt is taller than the visible
-  // slide area, lift the button by the overflow so it stays on-screen.
-  // The popup is portaled into the article and pinned via `position: fixed`
-  // — the article's `scale` transform creates the containing block, so
-  // bottom/right anchor to the visible slide and don't drift when the
-  // article scrolls. (`position: sticky` doesn't engage inside a scaled
-  // ancestor in WebKit, so we use `fixed`.)
+  // Run button: lives inside .file-excerpt and pins to its bottom-right via
+  // CSS. When the excerpt is taller than the visible slide area, we lift the
+  // button by the overflow so it stays on-screen.
+  // Popup: portaled into the article (so it escapes .file-excerpt's
+  // overflow:hidden) and positioned in article-local coords. `position:
+  // fixed`/sticky aren't reliable here — Safari 18 doesn't always treat the
+  // article's `scale:` transform as a containing-block-creating transform.
   useEffect(() => {
     const fe = containerRef.current;
     if (!fe) return;
@@ -672,20 +671,26 @@ export function FileExcerpt({
     setArticleEl(article);
     const update = () => {
       const btn = runBtnRef.current;
-      if (!btn) return;
-      const feRect = fe.getBoundingClientRect();
-      const articleRect = article.getBoundingClientRect();
-      const overflowPx = feRect.bottom - articleRect.bottom;
-      if (overflowPx > 0) {
-        const slideScale =
-          parseFloat(
-            getComputedStyle(document.documentElement).getPropertyValue(
-              "--slide-scale",
-            ),
-          ) || 1;
-        btn.style.bottom = `${overflowPx / slideScale + 4}px`;
-      } else {
-        btn.style.bottom = "";
+      if (btn) {
+        const feRect = fe.getBoundingClientRect();
+        const articleRect = article.getBoundingClientRect();
+        const overflowPx = feRect.bottom - articleRect.bottom;
+        if (overflowPx > 0) {
+          const slideScale =
+            parseFloat(
+              getComputedStyle(document.documentElement).getPropertyValue(
+                "--slide-scale",
+              ),
+            ) || 1;
+          btn.style.bottom = `${overflowPx / slideScale + 4}px`;
+        } else {
+          btn.style.bottom = "";
+        }
+      }
+      const popup = popupRef.current;
+      if (popup) {
+        const visibleBottomInArticle = article.scrollTop + article.clientHeight;
+        popup.style.top = `${visibleBottomInArticle - popup.offsetHeight - 4}px`;
       }
     };
     update();
@@ -699,7 +704,7 @@ export function FileExcerpt({
       window.removeEventListener("resize", update);
       ro.disconnect();
     };
-  }, [popupOpen, running]);
+  }, [popupOpen, popupSize.height, running]);
 
   if (runDirectoryError) {
     return <pre className="mdx-error">{runDirectoryError}</pre>;

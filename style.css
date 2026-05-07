@@ -215,13 +215,12 @@ pre code > span.hl {
   z-index: 5;
 }
 .file-excerpt-popup {
-  /* Pinned to the visible slide. The article uses `scale: var(--slide-scale)`,
-   * which establishes a containing block for fixed descendants, so
-   * bottom/right are relative to the article's box and don't drift when the
-   * article scrolls. */
-  position: fixed;
+  /* Portaled into the article and positioned in article-local coords by JS
+   * each scroll/resize tick. `position: fixed` would be cleaner, but Safari
+   * 18 doesn't reliably treat `scale:` on the article as a containing-block-
+   * creating transform for fixed descendants. */
+  position: absolute;
   right: 4px;
-  bottom: 4px;
   background: #202020;
   color: #e6e6e6;
   border-radius: 10px;
