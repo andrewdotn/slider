@@ -173,6 +173,19 @@ export function Laser({ active }: { active: boolean }) {
       ref={canvasRef}
       data-testid="laser-overlay"
       aria-hidden="true"
+      onClick={(e) => {
+        // Forward clicks to lower layers
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const prev = canvas.style.pointerEvents;
+        canvas.style.pointerEvents = "none";
+        const target = document.elementFromPoint(
+          e.clientX,
+          e.clientY,
+        ) as HTMLElement | null;
+        canvas.style.pointerEvents = prev;
+        if (target) target.click();
+      }}
       style={{
         position: "fixed",
         inset: 0,

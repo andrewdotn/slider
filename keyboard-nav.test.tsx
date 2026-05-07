@@ -117,6 +117,43 @@ describe("Keyboard Navigation", () => {
     expect(overlay!.style.pointerEvents).toBe("auto");
   });
 
+  it("forwards clicks through the laser overlay to elements beneath", async () => {
+    window.history.pushState({}, "", "/talks/sample-talk1/");
+    const screen = await render(<App />);
+
+    await expect.element(screen.getByText("Slide 1")).toBeVisible();
+
+    const btn = document.createElement("button");
+    btn.textContent = "underneath";
+    btn.style.position = "fixed";
+    btn.style.left = "100px";
+    btn.style.top = "100px";
+    btn.style.width = "80px";
+    btn.style.height = "30px";
+    btn.style.zIndex = "1";
+    const onClick = vi.fn();
+    btn.addEventListener("click", onClick);
+    document.body.appendChild(btn);
+
+    await userEvent.keyboard("l");
+
+    const overlay = document.querySelector(
+      '[data-testid="laser-overlay"]',
+    ) as HTMLElement | null;
+    expect(overlay).not.toBeNull();
+
+    overlay!.dispatchEvent(
+      new MouseEvent("click", {
+        bubbles: true,
+        clientX: 140,
+        clientY: 115,
+      }),
+    );
+
+    expect(onClick).toHaveBeenCalled();
+    document.body.removeChild(btn);
+  });
+
   it("toggles fullscreen on 'f'", async () => {
     window.history.pushState({}, "", "/talks/sample-talk1/");
     const screen = await render(<App />);
