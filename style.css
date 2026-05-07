@@ -229,6 +229,11 @@ pre code > span.hl {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Reset slide-level typography (article sets 26px/36px) so the popup's
+   * chrome doesn't balloon and push menu items past the popup's clipped
+   * bottom. */
+  font-size: 12px;
+  line-height: normal;
 }
 .file-excerpt-popup-resize {
   position: absolute;

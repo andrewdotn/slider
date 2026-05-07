@@ -981,4 +981,93 @@ describe.concurrent("FileExcerpt end-to-end", () => {
       }
     },
   );
+
+  test.concurrent(
+    "Manage menu is visible on a large viewport",
+    { timeout: 60000 },
+    async ({ tmpdirBrowserServer }) => {
+      const {
+        server: { url },
+        tmpdir,
+      } = await tmpdirBrowserServer;
+
+      const dir = path.join(tmpdir, "bigvp");
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, "src.txt"), "x\n");
+      await fs.writeFile(
+        path.join(dir, "Makefile"),
+        "all:\n\t@echo done\nclean:\n\t@true\n",
+      );
+      const md = [
+        "# Demo",
+        "",
+        "## Run",
+        "",
+        '<FileExcerpt src="bigvp/src.txt" runMethod="Makefile" />',
+        "",
+      ].join("\n");
+      await fs.writeFile(path.join(tmpdir, "bigvp.md"), md);
+
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage();
+        await page.setViewportSize({ width: 2500, height: 1500 });
+        await page.goto(`${url}/talks/bigvp/run`);
+        await waitForText(page, ".file-excerpt", "x");
+        await page.click(".file-excerpt-run");
+        await page.waitForSelector(".file-excerpt-popup");
+        await page.click(
+          '.file-excerpt-popup-header button:has-text("Manage")',
+        );
+        const info = await page.evaluate(() => {
+          const m = document.querySelector(
+            ".file-excerpt-menu",
+          ) as HTMLElement | null;
+          if (!m) return { found: false } as const;
+          const r = m.getBoundingClientRect();
+          return {
+            found: true,
+            rect: { top: r.top, left: r.left, w: r.width, h: r.height },
+            viewport: {
+              w: window.innerWidth,
+              h: window.innerHeight,
+            },
+          } as const;
+        });
+        if (!info.found) throw new Error("menu not in DOM");
+        const r = info.rect;
+        const v = info.viewport;
+        // Menu must fit entirely within the viewport (and have nonzero size).
+        if (
+          r.w <= 0 ||
+          r.h <= 0 ||
+          r.top < 0 ||
+          r.top + r.h > v.h + 1 ||
+          r.left < 0 ||
+          r.left + r.w > v.w + 1
+        ) {
+          throw new Error(
+            "menu not fully visible on large viewport: " + JSON.stringify(info),
+          );
+        }
+        // Also: the menu must be inside the popup so overflow:hidden doesn't
+        // clip its bottom items.
+        const popup = await page.evaluate(() => {
+          const p = document.querySelector(
+            ".file-excerpt-popup",
+          ) as HTMLElement;
+          const pr = p.getBoundingClientRect();
+          return { top: pr.top, bottom: pr.bottom };
+        });
+        if (r.top + r.h > popup.bottom + 1) {
+          throw new Error(
+            "menu clipped by popup: " +
+              JSON.stringify({ menu: info, popup }),
+          );
+        }
+      } finally {
+        await browser.close();
+      }
+    },
+  );
 });
