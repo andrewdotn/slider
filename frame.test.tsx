@@ -31,9 +31,9 @@ describe("Frame", () => {
       "iframe.frame-iframe",
     ) as HTMLIFrameElement;
     expect(iframe.getAttribute("src")).toBe("https://example.org/");
-    // Empty sandbox attribute = maximally restricted (no permissions).
-    expect(iframe.getAttribute("sandbox")).toBe("");
-    // Must NOT grant same-origin access — slide JS runs as the user.
+    // without allow-same-origin should be opaque origin that can’t access
+    // parent’s content/variables.
+    expect(iframe.getAttribute("sandbox")).toBe("allow-scripts");
     expect(iframe.getAttribute("sandbox") ?? "").not.toContain(
       "allow-same-origin",
     );

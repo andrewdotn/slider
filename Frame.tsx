@@ -124,7 +124,7 @@ export function Frame({ src, fallback }: Props) {
           <iframe
             className="frame-iframe"
             src={src}
-            sandbox=""
+            sandbox="allow-scripts"
             referrerPolicy="no-referrer"
           />
         )}
