@@ -400,7 +400,7 @@ function SlideView({
   // Sub-slides share their parent slide's position so the dots remain
   // evenly spread regardless of sub-slide counts.
   const progress = slides.length > 1 ? idx / (slides.length - 1) : 0;
-  const slideNumberLeft = `calc(1rem + (100vw - 4.5rem) * ${progress})`;
+  const slideNumberLeft = `calc(1rem * var(--slide-scale, 1) + (100vw - 3.8rem * var(--slide-scale, 1)) * ${progress})`;
 
   return (
     <>

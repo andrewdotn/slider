@@ -611,13 +611,13 @@ ul.toc a:hover {
 
 .nav-arrow {
   position: fixed;
-  bottom: 1rem;
-  width: 2.5rem;
-  height: 2.5rem;
+  bottom: calc(1rem * var(--slide-scale, 1));
+  width: calc(1.8rem * var(--slide-scale, 1));
+  height: calc(1.8rem * var(--slide-scale, 1));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.75rem;
+  font-size: calc(1.75rem * var(--slide-scale, 1));
   line-height: 1;
   color: #888;
   text-decoration: none;
@@ -636,9 +636,9 @@ ul.toc a:hover {
 }
 
 .nav-prev {
-  left: 1rem;
+  left: calc(1rem * var(--slide-scale, 1));
 }
 
 .nav-next {
-  right: 1rem;
+  right: calc(1rem * var(--slide-scale, 1));
 }
