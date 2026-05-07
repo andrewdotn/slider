@@ -191,8 +191,8 @@ pre code > span.hl {
   background: rgb(240, 240, 240);
   border: 1px solid rgb(224, 224, 224);
   font-family: "Ubuntu Mono", "Courier New", monospace;
-  font-size: 18px;
-  line-height: 24px;
+  font-size: calc(18px * var(--font-scale, 1));
+  line-height: calc(24px * var(--font-scale, 1));
   letter-spacing: -1px;
   color: black;
 }
@@ -207,6 +207,7 @@ pre code > span.hl {
 }
 .file-excerpt-run {
   position: absolute;
+  bottom: 4px;
   right: 4px;
   font-size: 12px;
   padding: 2px 8px;
@@ -214,8 +215,13 @@ pre code > span.hl {
   z-index: 5;
 }
 .file-excerpt-popup {
-  position: absolute;
+  /* Pinned to the visible slide. The article uses `scale: var(--slide-scale)`,
+   * which establishes a containing block for fixed descendants, so
+   * bottom/right are relative to the article's box and don't drift when the
+   * article scrolls. */
+  position: fixed;
   right: 4px;
+  bottom: 4px;
   background: #202020;
   color: #e6e6e6;
   border-radius: 10px;

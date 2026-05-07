@@ -61,6 +61,8 @@ Here is *the code*
 
 ## Excerpt
 
+<Font size="70%"/>
+
 <FileExcerpt
     src="sample-long-file/sample-long-file.txt"
     runMethod="Makefile"

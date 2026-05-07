@@ -32,6 +32,7 @@ import { CodeBlock, toggleCodeBlockDebug } from "./CodeBlock.tsx";
 import { FileExcerpt } from "./FileExcerpt.tsx";
 import { Frame, toggleOfflineMode } from "./Frame.tsx";
 import { Laser } from "./Laser.tsx";
+import { Font } from "./Font.tsx";
 
 type MDXContent = (props: Record<string, unknown>) => React.JSX.Element;
 
@@ -43,12 +44,6 @@ function extractCodeText(node: React.ReactNode): string {
     return extractCodeText(node.props.children);
   }
   return "";
-}
-
-function Font({ size }: { size: string }) {
-  return (
-    <style>{`.slides article.current > * { zoom: ${size}; }`}</style>
-  );
 }
 
 function Hide({ children }: { children?: React.ReactNode }) {
