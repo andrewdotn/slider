@@ -29,7 +29,7 @@ import {
   transformForSubSlide,
 } from "./subslides.tsx";
 import { CodeBlock, toggleCodeBlockDebug } from "./CodeBlock.tsx";
-import { FileExcerpt } from "./FileExcerpt.tsx";
+import { FileExcerpt, clearEditedCache } from "./FileExcerpt.tsx";
 import { Frame, toggleOfflineMode } from "./Frame.tsx";
 import { Laser } from "./Laser.tsx";
 import { Font } from "./Font.tsx";
@@ -447,6 +447,7 @@ function SlideView({
 export function App() {
   const data = useSlides();
   const [laser, setLaser] = useState(false);
+  const [resetNonce, setResetNonce] = useState(0);
 
   useEffect(() => {
     if (!data) return;
@@ -503,6 +504,9 @@ export function App() {
         setLaser((v) => !v);
       } else if (e.key === "o" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         toggleOfflineMode();
+      } else if (e.key === "r" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        clearEditedCache();
+        setResetNonce((n) => n + 1);
       } else if (e.key === "f" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (document.fullscreenElement) {
           document.exitFullscreen();
@@ -523,6 +527,7 @@ export function App() {
   return (
     <>
       <SlideView
+        key={resetNonce}
         talk={data.talk}
         slides={data.slides}
         idx={data.idx}

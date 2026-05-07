@@ -81,6 +81,9 @@ inspired by LaTeX’s beamer.
 
   - `f` toggles full screen
 
+  - `r` does a soft reload, throwing away code block edits and resetting
+    `<Frame/>` objects without leaving fullscreen mode
+
   - `o` toggles offline mode, making `<Frame/>` show fallback images
     instead of iframes
 

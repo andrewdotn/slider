@@ -141,6 +141,10 @@ function renderWithTimestamps(
 // so edits survive slide navigation within the SPA. A page reload clears it.
 const editedCache = new Map<string, string>();
 
+export function clearEditedCache() {
+  editedCache.clear();
+}
+
 // FitAddon under-fills when the host is inside a CSS scale() transform.
 // We use xterm's own cellWidth (so the rendered screen width matches
 // cols * cellWidth exactly) but divide the host's getComputedStyle width
