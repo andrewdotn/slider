@@ -459,8 +459,10 @@ export function FileExcerpt({
     const onDown = (e: MouseEvent) => {
       const view = viewRef.current;
       if (!view || !view.hasFocus) return;
-      const target = e.target as Node | null;
-      if (target && view.dom.contains(target)) return;
+      const target = e.target as Element | null;
+      // Bail on clicks targeting any CodeMirror editor; with multiple
+      // FileExcerpts on a slide, this handler runs for every  instance
+      if (target && target.closest && target.closest(".cm-editor")) return;
       // Safari/WebKit's default mousedown behavior on a non-focusable element
       // adjacent to a focused contenteditable re-asserts focus on the
       // contenteditable; blur() alone is reverted before the click finishes.
