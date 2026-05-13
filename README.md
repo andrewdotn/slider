@@ -102,9 +102,32 @@ inspired by LaTeX’s beamer.
 
 ## Running
 
+### Directly on your machine
+
+Requires Node 24 and yarn 4 (pinned via volta — `volta install node yarn`
+will pick up the versions from `package.json`). Then:
+
+    yarn install
     node --experimental-strip-types server.ts \
         [--port 1234] \
         [--base-dir /path-to-slides]
+
+### With Docker
+
+If you'd rather not install node and the native build tools locally, a
+`Dockerfile` and `docker-compose.yml` are included:
+
+    docker compose up --build
+
+This serves on <http://localhost:3000> and uses the repo root as the slides
+base directory. To point at a different folder of talks, set `SLIDES_DIR`:
+
+    SLIDES_DIR=/path/to/talks docker compose up
+
+The repo is bind-mounted into the container so live-reload still works when
+you edit source files. `node_modules` lives in a named volume because
+`node-pty` is a native binding and needs to be built for the container's
+platform, not the host's.
 
 ## Caveats
 

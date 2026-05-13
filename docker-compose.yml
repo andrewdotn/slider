@@ -1,0 +1,25 @@
+services:
+  slider:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      # Bind-mount the source so edits trigger live-reload inside the container.
+      - .:/app
+      # Keep node_modules inside the container (the host has none, and the
+      # native node-pty build is platform-specific).
+      - slider_node_modules:/app/node_modules
+      # Mount a directory of slides. Override SLIDES_DIR in a .env file or
+      # `SLIDES_DIR=/path/to/talks docker compose up` to point elsewhere.
+      - ${SLIDES_DIR:-.}:/slides
+    command:
+      - node
+      - --experimental-strip-types
+      - server.ts
+      - --port
+      - "3000"
+      - --base-dir
+      - /slides
+
+volumes:
+  slider_node_modules:
