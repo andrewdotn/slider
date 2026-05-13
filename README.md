@@ -4,6 +4,16 @@ A presentation tool for markdown files, built on vite’s dev server and MDX,
 with output format inspired by go present and progressive-reveal features
 inspired by LaTeX’s beamer.
 
+## AI disclosure
+
+  - This README is entirely human-written. I scaffolded out a hello world
+    express app by hand and then let the agent run from that. I generally
+    reviewed the code before committing it, but didn‘t dig into all the
+    details, as my focus at the time was on creating, entirely without AI,
+    the content for the talk that I used this tool to present. I believe
+    most of the code is of passable/reasonable-ish quality except for the
+    CSS which I think is not good.
+
 ## Features
 
   - Live reload when talk files are changed on disk
@@ -100,6 +110,9 @@ inspired by LaTeX’s beamer.
 
 This is intended for running trusted input on localhost, not for publishing
 slides on the internet (yet?).
+
+The embedded web terminal can‘t repeat characters on holding down keys
+without disabling ApplePressAndHoldEnabled for the whole browser.
 
 ## Developer notes
 
