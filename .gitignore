@@ -1,3 +1,4 @@
 /.yarn/install-state.gz
 /node_modules/
 /temp-eval/
+.vite-cache/
