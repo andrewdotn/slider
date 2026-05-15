@@ -1,8 +1,17 @@
-.git
-node_modules
-.yarn/cache
-.yarn/install-state.gz
-temp-eval
-Dockerfile
-docker-compose.yml
-.dockerignore
+.git/
+**/.gitignore
+
+/node_modules/
+/.yarn/cache
+/.yarn/install-state.gz
+/temp-eval/
+/Dockerfile
+/docker-compose.yml
+/.dockerignore
+
+.idea/
+
+**/.DS_Store
+
+# vim tmp files
+**/*.sw?
